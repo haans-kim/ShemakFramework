@@ -10,8 +10,12 @@ import {
   Target,
   BookOpen,
   Layers,
+  Grid3X3,
+  Search,
 } from "lucide-react";
 import { SkillsRadarChart } from "@/components/skills/SkillsCharts";
+import { BFMMatrix } from "@/components/skills/BFMMatrix";
+import { HRDBrowser } from "@/components/skills/HRDBrowser";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +137,40 @@ export default function SkillsPage() {
           팀별 스킬 보유 수준, 갭 분석, 핵심 부족 스킬
         </p>
       </div>
+
+      {/* BFM Matrix */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Grid3X3 className="w-5 h-5 text-indigo-600" />
+            BFM (Business Function Matrix) 구조도
+          </CardTitle>
+          <p className="text-sm text-neutral-500">
+            책임레벨(Direct/Control/Execute) x 직군 매트릭스 -- 컴포넌트별 직무/스킬 분포
+          </p>
+        </CardHeader>
+        <CardContent>
+          <BFMMatrix />
+        </CardContent>
+      </Card>
+
+      {/* HRD Browser */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Search className="w-5 h-5 text-blue-600" />
+            현대자동차 R&D 직군 스킬 프레임워크
+          </CardTitle>
+          <p className="text-sm text-neutral-500">
+            직군 선택 &rarr; Task 선택 &rarr; 스킬 선택 &rarr; L1-L5 레벨 정의 확인
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="h-[520px] border-t border-neutral-200">
+            <HRDBrowser />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

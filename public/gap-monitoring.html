@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>BFM Requirement & Gap Analysis Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial,Helvetica,'Malgun Gothic',sans-serif; background:#f8fafc; color:#111827; }
+
+/* Header */
+.header { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);
+  padding:28px 40px; }
+.header h1 { color:#fff; font-size:20px; font-weight:600; letter-spacing:-0.3px; }
+.header .subtitle { color:#94a3b8; font-size:13px; margin-top:4px; }
+
+/* Tabs */
+.tabs { display:flex; background:#1a1a2e; padding:0 40px; gap:4px; }
+.tab { padding:12px 24px; color:#94a3b8; cursor:pointer; font-size:14px; font-weight:500;
+  border-bottom:3px solid transparent; transition:all 0.2s; }
+.tab:hover { color:#fff; }
+.tab.active { color:#fff; border-bottom-color:#e94560; }
+
+/* Content */
+.content { padding:28px 40px; max-width:1400px; margin:0 auto; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* Summary Cards */
+.summary-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+.s-card { border-radius:10px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,0.06);
+  border:2px solid #d1d5db; border-left:5px solid; transition:all 0.2s; }
+.s-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+.s-card .s-label { font-size:12px; color:#6b7280; margin-bottom:6px; }
+.s-card .s-value { font-size:28px; font-weight:700; margin-bottom:4px; }
+.s-card .s-sub { font-size:11px; color:#9ca3af; }
+.s-card.type-gap { border-left-color:#ef4444; background:linear-gradient(135deg,#fef2f2,#fff); }
+.s-card.type-gap .s-value { color:#ef4444; }
+.s-card.type-surplus { border-left-color:#10b981; background:linear-gradient(135deg,#ecfdf5,#fff); }
+.s-card.type-surplus .s-value { color:#10b981; }
+.s-card.type-total { border-left-color:#3b82f6; background:linear-gradient(135deg,#eff6ff,#fff); }
+.s-card.type-total .s-value { color:#3b82f6; }
+.s-card.type-warn { border-left-color:#f59e0b; background:linear-gradient(135deg,#fffbeb,#fff); }
+.s-card.type-warn .s-value { color:#f59e0b; }
+
+/* Grid */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:28px; }
+@media(max-width:1100px) { .grid-2 { grid-template-columns:1fr; } }
+
+/* Panel card */
+.panel { background:#fff; border-radius:12px; padding:24px; box-shadow:0 1px 4px rgba(0,0,0,0.06);
+  border:1px solid #e5e7eb; }
+.panel h2 { font-size:15px; font-weight:600; color:#111827; margin-bottom:4px; }
+.panel .panel-desc { font-size:12px; color:#9ca3af; margin-bottom:16px; }
+
+/* Chart */
+.chart-wrap { position:relative; width:100%; height:420px; }
+.chart-wrap canvas { width:100% !important; height:100% !important; }
+
+/* Competency Group */
+.comp-group { margin-bottom:20px; }
+.comp-group-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid #e5e7eb; }
+.comp-group-header .comp-icon { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.comp-group-header h3 { font-size:14px; font-weight:600; color:#111827; }
+.comp-group-header .comp-count { font-size:11px; color:#9ca3af; margin-left:auto; }
+
+/* Position Card */
+.pos-card { display:flex; align-items:stretch; gap:14px; padding:14px 16px; border-radius:10px;
+  border:1px solid #e5e7eb; margin-bottom:10px; cursor:pointer; transition:all 0.2s;
+  background:linear-gradient(135deg,#fef2f2,#fff); }
+.pos-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.1); border-color:#fca5a5; }
+.pos-card .pos-rank { width:22px; height:22px; border-radius:6px; display:flex; align-items:center;
+  justify-content:center; font-weight:700; font-size:11px; flex-shrink:0; color:#fff;
+  background:linear-gradient(135deg,#ef4444,#dc2626); margin-top:2px; }
+.pos-card .pos-body { flex:1; min-width:0; }
+.pos-card .pos-title { font-size:13px; font-weight:700; color:#111827; margin-bottom:2px; }
+.pos-card .pos-meta { font-size:11px; color:#6b7280; }
+.pos-card .pos-rqmt { font-size:11px; color:#4b5563; margin-top:4px; line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.pos-card .pos-right { display:flex; flex-direction:column; align-items:flex-end; justify-content:center; flex-shrink:0; }
+.pos-card .pos-gap { font-size:18px; font-weight:800; }
+.pos-card .pos-urgency { font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; margin-bottom:4px; }
+.urgency-hire { background:#fee2e2; color:#dc2626; }
+.urgency-develop { background:#fef3c7; color:#d97706; }
+.urgency-self { background:#d1fae5; color:#059669; }
+.rqmt-type { font-size:10px; font-weight:600; padding:2px 8px; border-radius:6px; margin-top:2px; display:inline-block; }
+.rqmt-strategic { background:#fce7f3; color:#be185d; }
+.rqmt-operational { background:#e0e7ff; color:#3730a3; }
+
+/* BFM Matrix */
+.matrix-table { width:100%; border-collapse:collapse; font-size:11px; }
+.matrix-table th { background:#1e293b; color:#fff; padding:10px 8px; font-weight:500; text-align:center; font-size:11px; }
+.matrix-table th:first-child { width:80px; }
+.matrix-table td { padding:10px 8px; border:1px solid #e5e7eb; vertical-align:middle; text-align:center;
+  cursor:pointer; transition:all 0.15s; }
+.matrix-table td.level-cell { font-weight:700; font-size:12px; width:80px; cursor:default; writing-mode:horizontal-tb; }
+.matrix-table td:not(.level-cell):not(.empty):hover { background:#f1f5f9; box-shadow:0 2px 8px rgba(0,0,0,0.12); z-index:2; position:relative; }
+.matrix-table td.empty { background:#f8fafc; cursor:default; }
+.matrix-table td.empty:hover { box-shadow:none; }
+.level-direct { background:#fed7aa; }
+.level-control { background:#fef08a; }
+.level-execute { background:#bbf7d0; }
+.comp-name { font-weight:700; font-size:11px; color:#111827; margin-bottom:3px; }
+.comp-rqmt { font-size:10px; color:#6b7280; line-height:1.3; }
+.gap-badge { display:inline-block; padding:2px 6px; border-radius:6px; font-size:9px; font-weight:700; margin-top:4px; }
+.gap-pos { background:#fee2e2; color:#dc2626; }
+.gap-warn { background:#fef3c7; color:#d97706; }
+.gap-neg { background:#d1fae5; color:#059669; }
+
+/* Gap Table */
+.gap-table-wrap { overflow-y:auto; max-height:600px; }
+.gap-table { width:100%; border-collapse:collapse; font-size:11px; }
+.gap-table thead th { background:#1e293b; color:#fff; padding:9px 8px; font-weight:500; text-align:center;
+  font-size:11px; position:sticky; top:0; z-index:2; white-space:nowrap; }
+.gap-table tbody td { padding:7px 8px; border-bottom:1px solid #e5e7eb; vertical-align:middle; }
+.gap-table tbody tr { cursor:pointer; transition:background 0.15s; }
+.gap-table tbody tr:hover { background:#f1f5f9 !important; }
+.gap-table .col-no { text-align:center; font-weight:700; width:36px; }
+.gap-table .col-comp { font-weight:600; color:#111827; white-space:nowrap; }
+.gap-table .col-rqmt { color:#4b5563; line-height:1.4; max-width:280px; }
+.gap-table .col-num { text-align:center; font-weight:600; width:64px; }
+.gap-table .col-gap { text-align:center; font-weight:700; width:72px; }
+.gap-table .row-hire { background:rgba(254,226,226,0.3); }
+.gap-table .row-develop { background:rgba(254,243,199,0.3); }
+.gap-table .row-self { background:rgba(209,250,229,0.2); }
+.gap-cat-badge { display:inline-block; padding:2px 7px; border-radius:5px; font-size:9px; font-weight:700; }
+
+/* Detail Overlay */
+.detail-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.45); z-index:100; justify-content:center; align-items:center; }
+.detail-overlay.show { display:flex; }
+.detail-panel { background:#fff; border-radius:16px; padding:32px; max-width:580px; width:92%;
+  max-height:82vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+.detail-panel .close-btn { float:right; background:none; border:none; font-size:24px; cursor:pointer; color:#9ca3af; transition:color 0.15s; }
+.detail-panel .close-btn:hover { color:#ef4444; }
+.detail-panel h3 { font-size:18px; font-weight:700; margin-bottom:4px; color:#111827; }
+.detail-panel .meta { font-size:12px; color:#6b7280; margin-bottom:16px; }
+.detail-panel .meta span { display:inline-block; padding:3px 10px; border-radius:6px; margin-right:8px; font-weight:600; font-size:11px; }
+.detail-section { margin-bottom:16px; }
+.detail-section h4 { font-size:13px; font-weight:600; color:#111827; margin-bottom:8px; padding-bottom:4px; border-bottom:2px solid #e5e7eb; }
+.rqmt-text { font-size:13px; color:#374151; line-height:1.6; }
+.score-row { display:flex; gap:12px; margin-bottom:14px; }
+.score-box { flex:1; padding:14px; border-radius:10px; text-align:center; }
+.score-box .score-label { font-size:11px; color:#6b7280; }
+.score-box .score-val { font-size:26px; font-weight:700; margin:4px 0; }
+.score-box.imp { background:linear-gradient(135deg,#fef3c7,#fff); }
+.score-box.imp .score-val { color:#d97706; }
+.score-box.adv { background:linear-gradient(135deg,#dbeafe,#fff); }
+.score-box.adv .score-val { color:#2563eb; }
+.score-box.gap-box { background:linear-gradient(135deg,#fee2e2,#fff); }
+.score-box.gap-box .score-val { color:#dc2626; }
+.score-box.gap-box.surplus { background:linear-gradient(135deg,#d1fae5,#fff); }
+.score-box.gap-box.surplus .score-val { color:#059669; }
+
+/* Hiring Rec in detail */
+.hiring-rec { background:linear-gradient(135deg,#1e293b,#0f172a); color:#fff; border-radius:12px; padding:20px; margin-top:12px; }
+.hiring-rec h4 { color:#f87171; font-size:14px; margin-bottom:10px; }
+.hiring-rec .pos-title-d { font-size:16px; font-weight:700; margin-bottom:6px; }
+.hiring-rec .pos-detail-d { font-size:12px; color:#cbd5e1; line-height:1.7; }
+.hiring-rec .no-hire { color:#34d399; font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>R&D BFM Requirement & Gap Analysis</h1>
+    <div class="subtitle">Business Function Map 기반 채용 전략 대시보드</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">Overview</div>
+  <div class="tab" onclick="switchTab(1)">BFM Matrix</div>
+</div>
+
+<div class="content">
+  <!-- Tab 0: Overview -->
+  <div class="tab-panel active" id="panel-0">
+    <div class="summary-row" id="summary-cards"></div>
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Strategic Importance vs Competitive Advantage</h2>
+        <div class="panel-desc">y=x 기준 — 빨강: 전략적 채용(Gap>1.5) / 주황: 역량 강화(0.8~1.5) / 녹색: 자기개발 권장(≤0.8) — 점 위 숫자는 우선순위</div>
+        <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Component별 Gap 분석 현황</h2>
+        <div class="panel-desc">Gap 크기 순 정렬 — 빨강: 전략적 채용 / 주황: 역량 강화 / 녹색: 자기개발 권장</div>
+        <div id="overview-positions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 1: BFM Matrix -->
+  <div class="tab-panel" id="panel-1">
+    <div class="panel">
+      <h2>Business Function Map - Component & Requirement Matrix</h2>
+      <div class="panel-desc">셀을 클릭하면 상세 정보와 채용 추천을 확인할 수 있습니다.</div>
+      <div style="overflow-x:auto;">
+        <table class="matrix-table" id="bfm-table"></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="detail-panel" id="detailPanel">
+    <button class="close-btn" onclick="closeDetail()">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const DATA = {"bfm": [{"row": 0, "col": 0, "level": "Direct", "competency": "R&D 기획/전략", "component": "R&D 기획·전략 수립", "rqmt": "· 중장기 R&D 로드맵 수립 및 기술 포트폴리오 전략 의사결정"}, {"row": 0, "col": 1, "level": "Direct", "competency": "선행연구", "component": "선행연구 전략·방향 수립", "rqmt": "· 원천기술 확보를 위한 선행연구 전략·방향 설정"}, {"row": 0, "col": 2, "level": "Direct", "competency": "미래기술", "component": "미래기술 전략 수립", "rqmt": "· 자율주행·UAM·로보틱스 등 미래 모빌리티 기술 비전 수립"}, {"row": 0, "col": 4, "level": "Direct", "competency": "차량 설계/검증", "component": "설계·검증 전략·기준 수립", "rqmt": "· 차량 플랫폼 아키텍처 전략 수립 및 설계 표준 체계 구축"}, {"row": 0, "col": 5, "level": "Direct", "competency": "차량개발 관리", "component": "차량개발 기획·기술지원", "rqmt": "· 차량개발 마스터플랜 수립 및 프로젝트 포트폴리오 운영"}, {"row": 0, "col": 6, "level": "Direct", "competency": "SW/전자개발", "component": "SW 전략·기획", "rqmt": "· SDV(SW Defined Vehicle) 전략 수립 및 SW 아키텍처 로드맵 설계"}, {"row": 0, "col": 7, "level": "Direct", "competency": "상용차개발", "component": "상용차 개발 전략 수립", "rqmt": "· 상용차 플랫폼 전략 및 전동화·수소 전환 로드맵 수립"}, {"row": 0, "col": 8, "level": "Direct", "competency": "품질/안전", "component": "품질·안전 정책 수립", "rqmt": "· 글로벌 품질경영(IATF 16949) 비전 수립 및 정책 설계"}, {"row": 1, "col": 0, "level": "Control", "competency": "R&D 기획/전략", "component": "R&D 지원", "rqmt": "· R&D 예산 편성·집행 관리 및 투자 효율성 분석"}, {"row": 1, "col": 1, "level": "Control", "competency": "선행연구", "component": "연구 과제·성과 관리", "rqmt": "· 연구과제 기획·진도 관리 및 성과 KPI 체계 운영"}, {"row": 1, "col": 2, "level": "Control", "competency": "미래기술", "component": "미래기술 R&D 과제 관리", "rqmt": "· 미래기술 과제 포트폴리오 구성 및 TRL 게이트 관리"}, {"row": 1, "col": 4, "level": "Control", "competency": "차량 설계/검증", "component": "설계·검증 품질·원가 관리", "rqmt": "· 설계 품질 지표 모니터링 및 개선과제 관리"}, {"row": 1, "col": 5, "level": "Control", "competency": "차량개발 관리", "component": "제네시스 프로젝트 관리", "rqmt": "· 프리미엄 차량 개발 일정·원가·품질 통합 관리"}, {"row": 1, "col": 6, "level": "Control", "competency": "SW/전자개발", "component": "SW 품질·형상 관리", "rqmt": "· ASPICE 프로세스 운영 및 SW 성숙도 관리"}, {"row": 1, "col": 7, "level": "Control", "competency": "상용차개발", "component": "상용 LCM 지원", "rqmt": "· 상용차 페이스리프트·연식변경 기획 및 일정 관리"}, {"row": 1, "col": 8, "level": "Control", "competency": "품질/안전", "component": "품질·안전·환경 관리", "rqmt": "· ISO 14001/45001 시스템 운영 및 내부심사 수행"}, {"row": 2, "col": 0, "level": "Control", "competency": "R&D 기획/전략", "component": "R&D 프로세스·표준 관리", "rqmt": "· 개발 프로세스(Stage-Gate) 운영·개선 및 표준화 관리"}, {"row": 2, "col": 1, "level": "Control", "competency": "선행연구", "component": "기술동향 분석·기술협력 관리", "rqmt": "· 글로벌 기술 트렌드 정보 수집·분석 및 인텔리전스 보고"}, {"row": 2, "col": 4, "level": "Control", "competency": "차량 설계/검증", "component": "설계 원가 산정·절감 관리", "rqmt": "· 차량 부품 목표원가 산정 체계 운영 및 달성 관리"}, {"row": 2, "col": 5, "level": "Control", "competency": "차량개발 관리", "component": "MSV 프로젝트 관리", "rqmt": "· 중형세단 개발 일정·마일스톤 관리 및 진도 보고"}, {"row": 2, "col": 6, "level": "Control", "competency": "SW/전자개발", "component": "제어SW 사양·로직 검증 관리", "rqmt": "· 제어 사양서 검토 및 로직 정합성 검증 수행"}, {"row": 2, "col": 8, "level": "Control", "competency": "품질/안전", "component": "품질시스템 운영·내부감사", "rqmt": "· IATF 16949 품질시스템 유지·운영 및 인증 갱신 관리"}, {"row": 3, "col": 4, "level": "Control", "competency": "차량 설계/검증", "component": "CAE 해석 기획·검증", "rqmt": "· 구조·충돌·NVH·CFD 해석 방법론 수립 및 정확도 검증"}, {"row": 3, "col": 5, "level": "Control", "competency": "차량개발 관리", "component": "MLV 프로젝트 관리", "rqmt": "· SUV/MPV 차량 개발 일정·마일스톤 관리"}, {"row": 4, "col": 0, "level": "Execute", "competency": "R&D 기획/전략", "component": "북미 R&D (HATCI)", "rqmt": "· 북미 법규(EPA/FMVSS) 기반 시험·평가 수행"}, {"row": 4, "col": 1, "level": "Execute", "competency": "선행연구", "component": "기초소재 연구", "rqmt": "· 경량소재(알루미늄/CFRP/고강도강) 물성 평가 및 실험 수행"}, {"row": 4, "col": 2, "level": "Execute", "competency": "미래기술", "component": "로보틱스 연구·사업", "rqmt": "· 로봇 기구설계·제어 알고리즘 개발 역량 (ROS/ROS2, C++/Python)"}, {"row": 4, "col": 4, "level": "Execute", "competency": "차량 설계/검증", "component": "제네시스 설계·시험", "rqmt": "· 프리미엄 차량 차체·섀시·내외장 3D 설계 역량 (CATIA/NX)"}, {"row": 4, "col": 5, "level": "Execute", "competency": "차량개발 관리", "component": "개발 일정·이슈 관리 실행", "rqmt": "· 개발 일정(WBS) 작성·추적 및 진도 보고"}, {"row": 4, "col": 6, "level": "Execute", "competency": "SW/전자개발", "component": "디지털 엔지니어링", "rqmt": "· 3D CAD(CATIA/NX) 기반 DMU 검증·디지털 목업 수행"}, {"row": 4, "col": 7, "level": "Execute", "competency": "상용차개발", "component": "상용 LCM", "rqmt": "· 상용차 페이스리프트·연식변경 설계 도면 작성"}, {"row": 4, "col": 8, "level": "Execute", "competency": "품질/안전", "component": "품질 검사·인증 실행", "rqmt": "· 완성차·부품 품질검사 수행 및 불량분석(8D/5Why)"}, {"row": 5, "col": 0, "level": "Execute", "competency": "R&D 기획/전략", "component": "유럽 R&D", "rqmt": "· 유럽 법규(ECE/EU) 기반 시험·평가 수행"}, {"row": 5, "col": 1, "level": "Execute", "competency": "선행연구", "component": "모빌리티 기술 연구", "rqmt": "· 커넥티드카·V2X 통신 기술 연구 및 프로토타입 개발"}, {"row": 5, "col": 2, "level": "Execute", "competency": "미래기술", "component": "배터리 개발", "rqmt": "· 리튬이온 배터리 셀·모듈·팩 설계 및 시험 평가"}, {"row": 5, "col": 3, "level": "Execute", "competency": "디자인", "component": "현대 디자인", "rqmt": "· 양산 차량 익스테리어·인테리어 디자인 실행"}, {"row": 5, "col": 4, "level": "Execute", "competency": "차량 설계/검증", "component": "전동화 P/T 설계·시험", "rqmt": "· 전기모터·인버터·감속기 설계 및 성능 시험 수행"}, {"row": 5, "col": 6, "level": "Execute", "competency": "SW/전자개발", "component": "인포테인먼트 개발", "rqmt": "· Android Automotive/QNX 기반 IVI SW 개발"}, {"row": 5, "col": 7, "level": "Execute", "competency": "상용차개발", "component": "상용차 설계·개발", "rqmt": "· 상용차 차체·섀시·파워트레인 설계 실행"}, {"row": 6, "col": 0, "level": "Execute", "competency": "R&D 기획/전략", "component": "인도 R&D", "rqmt": "· 인도 시장 법규(AIS/CMVR) 기반 현지화 개발"}, {"row": 6, "col": 1, "level": "Execute", "competency": "선행연구", "component": "차량 성능 기술 개발", "rqmt": "· 차량 동역학(주행/제동/조향/NVH) 성능 시험·평가"}, {"row": 6, "col": 2, "level": "Execute", "competency": "미래기술", "component": "수소연료전지 개발", "rqmt": "· PEMFC 스택 설계 및 MEA 성능 평가 수행"}, {"row": 6, "col": 3, "level": "Execute", "competency": "디자인", "component": "현대 스타일링", "rqmt": "· Clay 모델링 및 CAS(Computer Aided Styling) 수행"}, {"row": 6, "col": 4, "level": "Execute", "competency": "차량 설계/검증", "component": "MSV 설계·시험", "rqmt": "· 중형세단 차체·섀시·내외장 부품 3D 설계 역량 (CATIA/NX)"}, {"row": 6, "col": 6, "level": "Execute", "competency": "SW/전자개발", "component": "자율주행 개발", "rqmt": "· 인지(카메라/라이다/레이더) 알고리즘 개발"}, {"row": 7, "col": 0, "level": "Execute", "competency": "R&D 기획/전략", "component": "일본 R&D", "rqmt": "· 일본 시장 법규 기반 시험·평가 및 기술 벤치마킹"}, {"row": 7, "col": 1, "level": "Execute", "competency": "선행연구", "component": "차량 아키텍처 개발", "rqmt": "· 차량 패키지 레이아웃 설계 및 플랫폼 공용화"}, {"row": 7, "col": 4, "level": "Execute", "competency": "차량 설계/검증", "component": "MLV 설계·시험", "rqmt": "· SUV 차체·섀시·4WD 시스템 설계 수행"}, {"row": 7, "col": 6, "level": "Execute", "competency": "SW/전자개발", "component": "전자시스템 개발", "rqmt": "· ECU HW/SW 설계 및 차량 통신(CAN/LIN/Ethernet) 개발"}, {"row": 8, "col": 0, "level": "Execute", "competency": "R&D 기획/전략", "component": "중국 R&D", "rqmt": "· 중국 시장 법규(GB) 기반 현지화 개발"}, {"row": 8, "col": 6, "level": "Execute", "competency": "SW/전자개발", "component": "차량 제어 SW 개발", "rqmt": "· 차량 제어 로직 설계 역량 (MATLAB/Simulink, 임베디드 C)"}], "gaps": [{"level": "Execute", "biz": "차량개발 관리", "comp": "개발 일정·이슈 관리 실행", "rqmt": "이슈 트래킹 시스템(Jira 등) 운영 및 해결 촉진", "imp": 4.57, "adv": 2.13, "gap": 2.44}, {"level": "Execute", "biz": "품질/안전", "comp": "품질 검사·인증 실행", "rqmt": "국내외 법규인증(FMVSS/ECE/GB) 시험 수행", "imp": 3.76, "adv": 1.42, "gap": 2.34}, {"level": "Execute", "biz": "선행연구", "comp": "차량 성능 기술 개발", "rqmt": "CarSim/Adams 기반 차량 동역학 시뮬레이션 분석", "imp": 4.51, "adv": 2.42, "gap": 2.09}, {"level": "Direct", "biz": "선행연구", "comp": "선행연구 전략·방향 수립", "rqmt": "선행연구 성과의 양산 기술이전 전략 수립", "imp": 3.73, "adv": 1.87, "gap": 1.86}, {"level": "Execute", "biz": "SW/전자개발", "comp": "인포테인먼트 개발", "rqmt": "음성인식·디스플레이 연동 차량용 SW 개발", "imp": 4.95, "adv": 3.17, "gap": 1.78}, {"level": "Execute", "biz": "디자인", "comp": "현대 디자인", "rqmt": "디자인-설계 간 양산 실현성 검토 및 협업", "imp": 4.48, "adv": 3.2, "gap": 1.28}, {"level": "Execute", "biz": "상용차개발", "comp": "상용차 설계·개발", "rqmt": "전동화 상용차 설계·검증 수행", "imp": 3.78, "adv": 2.51, "gap": 1.27}, {"level": "Control", "biz": "상용차개발", "comp": "상용 LCM 지원", "rqmt": "법규 변경 대응 계획 수립 및 인증 프로세스 관리", "imp": 4.16, "adv": 3.14, "gap": 1.02}, {"level": "Direct", "biz": "품질/안전", "comp": "품질·안전 정책 수립", "rqmt": "품질 빅데이터 기반 예측 품질관리 체계 설계", "imp": 2.84, "adv": 1.98, "gap": 0.86}, {"level": "Control", "biz": "R&D 기획/전략", "comp": "R&D 프로세스·표준 관리", "rqmt": "PLM/ALM 시스템 운영·고도화 및 사용자 지원", "imp": 2.45, "adv": 1.72, "gap": 0.73}, {"level": "Execute", "biz": "상용차개발", "comp": "상용 LCM", "rqmt": "법규 변경 대응 설계 수행 및 인증 시험 지원", "imp": 2.32, "adv": 2.02, "gap": 0.3}, {"level": "Control", "biz": "차량 설계/검증", "comp": "CAE 해석 기획·검증", "rqmt": "해석-시험 상관성 분석 수행 및 해석 신뢰도 향상", "imp": 2.33, "adv": 2.07, "gap": 0.26}, {"level": "Control", "biz": "차량 설계/검증", "comp": "설계 원가 산정·절감 관리", "rqmt": "원가 분석(Teardown) 수행 및 VA/VE 과제 추진 관리", "imp": 2.63, "adv": 2.38, "gap": 0.25}, {"level": "Execute", "biz": "차량 설계/검증", "comp": "MSV 설계·시험", "rqmt": "경량화 설계 적용 및 공차 분석 수행", "imp": 3.48, "adv": 3.37, "gap": 0.11}, {"level": "Execute", "biz": "미래기술", "comp": "수소연료전지 개발", "rqmt": "수소저장·충전 시스템 안전성 시험 및 인증 대응", "imp": 2.43, "adv": 2.44, "gap": -0.01}, {"level": "Control", "biz": "차량개발 관리", "comp": "MSV 프로젝트 관리", "rqmt": "글로벌 동시개발 거점간 진도 통합 관리", "imp": 4.26, "adv": 4.34, "gap": -0.08}, {"level": "Execute", "biz": "선행연구", "comp": "모빌리티 기술 연구", "rqmt": "커넥티드카·V2X 통신 기술 연구 및 프로토타입 개발", "imp": 3.23, "adv": 3.34, "gap": -0.11}, {"level": "Execute", "biz": "차량 설계/검증", "comp": "전동화 P/T 설계·시험", "rqmt": "EV/HEV/PHEV 파워트레인 시스템 통합 검증", "imp": 4.64, "adv": 4.78, "gap": -0.14}, {"level": "Execute", "biz": "R&D 기획/전략", "comp": "인도 R&D", "rqmt": "이머징마켓 원가 최적화 차량 설계·시험", "imp": 2.61, "adv": 2.76, "gap": -0.15}, {"level": "Execute", "biz": "SW/전자개발", "comp": "차량 제어 SW 개발", "rqmt": "차량 제어 로직 설계 역량 (MATLAB/Simulink, 임베디드 C)", "imp": 3.2, "adv": 3.35, "gap": -0.15}, {"level": "Control", "biz": "SW/전자개발", "comp": "제어SW 사양·로직 검증 관리", "rqmt": "MIL/SIL/HIL 단계별 검증 프로세스 운영 관리", "imp": 3.14, "adv": 3.3, "gap": -0.16}, {"level": "Direct", "biz": "상용차개발", "comp": "상용차 개발 전략 수립", "rqmt": "PBV·특수차량 신사업 기회 발굴 및 사업화 전략 수립", "imp": 4.36, "adv": 4.58, "gap": -0.22}, {"level": "Control", "biz": "차량개발 관리", "comp": "제네시스 프로젝트 관리", "rqmt": "글로벌 동시개발 프로젝트 협업 관리", "imp": 3.71, "adv": 3.93, "gap": -0.22}, {"level": "Control", "biz": "차량 설계/검증", "comp": "설계·검증 품질·원가 관리", "rqmt": "부품 원가절감(VA/VE) 활동 기획·추진 관리", "imp": 4.27, "adv": 4.53, "gap": -0.26}, {"level": "Direct", "biz": "차량개발 관리", "comp": "차량개발 기획·기술지원", "rqmt": "개발 프로세스 혁신 및 글로벌 동시개발 체계 설계", "imp": 3.79, "adv": 4.1, "gap": -0.31}, {"level": "Execute", "biz": "선행연구", "comp": "차량 아키텍처 개발", "rqmt": "멀티 플랫폼(BEV/ICE) 아키텍처 설계 수행", "imp": 2.96, "adv": 3.27, "gap": -0.31}, {"level": "Control", "biz": "품질/안전", "comp": "품질·안전·환경 관리", "rqmt": "차량 안전성 평가 체계 운영 및 리콜 대응 프로세스 관리", "imp": 1.5, "adv": 1.82, "gap": -0.32}, {"level": "Execute", "biz": "SW/전자개발", "comp": "자율주행 개발", "rqmt": "딥러닝 기반 객체인식 모델 학습·최적화·검증", "imp": 3.16, "adv": 3.51, "gap": -0.35}, {"level": "Direct", "biz": "미래기술", "comp": "미래기술 전략 수립", "rqmt": "스타트업 협업·기술투자 심사 및 오픈이노베이션 기획", "imp": 4.22, "adv": 4.58, "gap": -0.36}, {"level": "Control", "biz": "SW/전자개발", "comp": "SW 품질·형상 관리", "rqmt": "SW 결함 추적 및 품질 메트릭 분석·관리", "imp": 2.36, "adv": 2.79, "gap": -0.43}, {"level": "Execute", "biz": "SW/전자개발", "comp": "디지털 엔지니어링", "rqmt": "디지털 트윈 시뮬레이션 모델 구축·운영", "imp": 2.58, "adv": 3.02, "gap": -0.44}, {"level": "Execute", "biz": "R&D 기획/전략", "comp": "북미 R&D (HATCI)", "rqmt": "현지 고객 피드백 분석 기반 차량 세팅 최적화", "imp": 2.13, "adv": 2.57, "gap": -0.44}, {"level": "Execute", "biz": "R&D 기획/전략", "comp": "중국 R&D", "rqmt": "중국 NEV 정책 대응 전동화 차량 개발 지원", "imp": 3.54, "adv": 4.02, "gap": -0.48}, {"level": "Control", "biz": "미래기술", "comp": "미래기술 R&D 과제 관리", "rqmt": "미래기술 과제 포트폴리오 구성 및 TRL 게이트 관리", "imp": 4.08, "adv": 4.57, "gap": -0.49}, {"level": "Execute", "biz": "선행연구", "comp": "기초소재 연구", "rqmt": "경량소재(알루미늄/CFRP/고강도강) 물성 평가 및 실험 수행", "imp": 4.14, "adv": 4.67, "gap": -0.53}, {"level": "Direct", "biz": "R&D 기획/전략", "comp": "R&D 기획·전략 수립", "rqmt": "글로벌 기술 메가트렌드 분석 기반 신사업 기회 식별", "imp": 1.73, "adv": 2.27, "gap": -0.54}, {"level": "Execute", "biz": "차량 설계/검증", "comp": "MLV 설계·시험", "rqmt": "전동화 SUV 플랫폼 설계·검증 수행", "imp": 3.78, "adv": 4.4, "gap": -0.62}, {"level": "Execute", "biz": "미래기술", "comp": "로보틱스 연구·사업", "rqmt": "로봇 기구설계·제어 알고리즘 개발 역량 (ROS/ROS2, C++/Python)", "imp": 3.02, "adv": 3.66, "gap": -0.64}, {"level": "Control", "biz": "선행연구", "comp": "연구 과제·성과 관리", "rqmt": "지식재산(IP) 전략 수립 및 특허 포트폴리오 관리", "imp": 1.8, "adv": 2.45, "gap": -0.65}, {"level": "Control", "biz": "선행연구", "comp": "기술동향 분석·기술협력 관리", "rqmt": "글로벌 기술 트렌드 정보 수집·분석 및 인텔리전스 보고", "imp": 3.94, "adv": 4.69, "gap": -0.75}, {"level": "Execute", "biz": "차량 설계/검증", "comp": "제네시스 설계·시험", "rqmt": "글로벌 법규 인증 시험 계획 수립 및 대응", "imp": 2.64, "adv": 3.4, "gap": -0.76}, {"level": "Execute", "biz": "R&D 기획/전략", "comp": "유럽 R&D", "rqmt": "유럽 법규(ECE/EU) 기반 시험·평가 수행", "imp": 2.89, "adv": 3.7, "gap": -0.81}, {"level": "Direct", "biz": "SW/전자개발", "comp": "SW 전략·기획", "rqmt": "OTA·커넥티드 서비스 중장기 사업 기획", "imp": 1.86, "adv": 2.83, "gap": -0.97}, {"level": "Direct", "biz": "차량 설계/검증", "comp": "설계·검증 전략·기준 수립", "rqmt": "글로벌 법규·인증 기준 선제 대응 전략 수립", "imp": 3.96, "adv": 4.94, "gap": -0.98}, {"level": "Execute", "biz": "R&D 기획/전략", "comp": "일본 R&D", "rqmt": "일본 시장 법규 기반 시험·평가 및 기술 벤치마킹", "imp": 1.8, "adv": 2.83, "gap": -1.03}, {"level": "Execute", "biz": "디자인", "comp": "현대 스타일링", "rqmt": "Alias 기반 서피스 품질 검증 및 데이터 관리", "imp": 1.93, "adv": 3.09, "gap": -1.16}, {"level": "Control", "biz": "R&D 기획/전략", "comp": "R&D 지원", "rqmt": "R&D 인력 운영 계획 수립 및 역량 개발 프로그램 관리", "imp": 2.93, "adv": 4.22, "gap": -1.29}, {"level": "Control", "biz": "품질/안전", "comp": "품질시스템 운영·내부감사", "rqmt": "품질 데이터 분석 기반 체계적 개선과제 도출", "imp": 3.58, "adv": 4.95, "gap": -1.37}, {"level": "Execute", "biz": "미래기술", "comp": "배터리 개발", "rqmt": "차세대 배터리(전고체 등) 소재·공정 연구", "imp": 2.88, "adv": 4.51, "gap": -1.63}, {"level": "Control", "biz": "차량개발 관리", "comp": "MLV 프로젝트 관리", "rqmt": "품질·원가 목표 달성 관리 및 리스크 대응", "imp": 2.02, "adv": 3.69, "gap": -1.67}, {"level": "Execute", "biz": "SW/전자개발", "comp": "전자시스템 개발", "rqmt": "ECU HW/SW 설계 및 차량 통신(CAN/LIN/Ethernet) 개발", "imp": 2.07, "adv": 4.08, "gap": -2.01}], "headers": ["R&D 기획/전략", "선행연구", "미래기술", "디자인", "차량 설계/검증", "차량개발 관리", "SW/전자개발", "상용차개발", "품질/안전"], "levels": ["Direct", "Control", "Control", "Control", "Execute", "Execute", "Execute", "Execute", "Execute"]};
+
+const gapByComp = {};
+DATA.gaps.forEach(g => { gapByComp[g.comp] = g; });
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  document.querySelectorAll('.tab-panel').forEach((p,i) => p.classList.toggle('active', i===idx));
+}
+
+// ============================================================
+// SUMMARY CARDS
+// ============================================================
+function renderSummary() {
+  const total = DATA.gaps.length;
+  const gapPos = DATA.gaps.filter(g=>g.gap>0);
+  const maxGap = DATA.gaps.reduce((a,b)=>a.gap>b.gap?a:b);
+  document.getElementById('summary-cards').innerHTML = `
+    <div class="s-card type-gap"><div class="s-label">▲ 전략적 채용</div><div class="s-value">${DATA.gaps.filter(g=>g.gap>1.5).length}</div><div class="s-sub">Gap > 1.5 / 경력직 채용 필요</div></div>
+    <div class="s-card type-warn"><div class="s-label">● 역량 강화</div><div class="s-value">${DATA.gaps.filter(g=>g.gap>0.8&&g.gap<=1.5).length}</div><div class="s-sub">0.8 < Gap ≤ 1.5 / 교육·OJT 보강</div></div>
+    <div class="s-card type-surplus"><div class="s-label">▼ 자기개발 권장</div><div class="s-value">${DATA.gaps.filter(g=>g.gap<=0.8).length}</div><div class="s-sub">Gap ≤ 0.8 / 개인 학습 충분</div></div>
+    <div class="s-card type-total"><div class="s-label">Total Components</div><div class="s-value">${total}</div><div class="s-sub">9 Competencies / 3 Levels</div></div>
+  `;
+}
+
+// ============================================================
+// SCATTER CHART
+// ============================================================
+function renderScatter() {
+  // Assign priority numbers (sorted by gap desc)
+  const sorted = DATA.gaps.slice().sort((a,b)=>b.gap-a.gap);
+  const numByComp = {};
+  sorted.forEach((g,i) => { numByComp[g.comp] = i+1; });
+
+  const hire = DATA.gaps.filter(g=>g.gap>1.5).sort((a,b)=>b.gap-a.gap).map(g=>({x:g.imp,y:g.adv,label:g.comp,no:numByComp[g.comp]}));
+  const develop = DATA.gaps.filter(g=>g.gap>0.8&&g.gap<=1.5).sort((a,b)=>b.gap-a.gap).map(g=>({x:g.imp,y:g.adv,label:g.comp,no:numByComp[g.comp]}));
+  const self = DATA.gaps.filter(g=>g.gap<=0.8).sort((a,b)=>b.gap-a.gap).map(g=>({x:g.imp,y:g.adv,label:g.comp,no:numByComp[g.comp]}));
+  const allSets = [hire, develop, self];
+
+  // Custom plugin to draw number labels on each point
+  const numberPlugin = {
+    id:'numberLabels',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      chart.data.datasets.forEach((ds, di) => {
+        if(di >= 3) return;
+        const meta = chart.getDatasetMeta(di);
+        meta.data.forEach((point, pi) => {
+          const no = ds.data[pi].no;
+          if(!no) return;
+          ctx.save();
+          ctx.font = 'bold 9px Arial';
+          ctx.fillStyle = '#374151';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(no, point.x, point.y - 6);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  new Chart(document.getElementById('scatterChart'), {
+    type:'scatter',
+    data:{
+      datasets:[
+        {label:'전략적 채용 (Gap>1.5)',data:hire,backgroundColor:'#ef4444',pointRadius:5,pointHoverRadius:8},
+        {label:'역량 강화 (0.8<Gap≤1.5)',data:develop,backgroundColor:'#f59e0b',pointRadius:5,pointHoverRadius:8},
+        {label:'자기개발 권장 (Gap≤0.8)',data:self,backgroundColor:'#10b981',pointRadius:4,pointHoverRadius:7},
+        {label:'y=x',data:[{x:1,y:1},{x:5,y:5}],type:'line',borderColor:'rgba(148,163,184,0.45)',borderWidth:3,pointRadius:0,fill:false}
+      ]
+    },
+    plugins:[numberPlugin],
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        tooltip:{callbacks:{label:ctx=>{const p=ctx.raw;return p.no?`#${p.no} ${p.label}: (${p.x?.toFixed(2)}, ${p.y?.toFixed(2)})`:''}}},
+        legend:{position:'bottom',labels:{font:{size:11,family:'Arial'}}}
+      },
+      scales:{
+        x:{title:{display:true,text:'전략적 중요도',font:{size:12}},min:1,max:5.5,grid:{color:'#f1f5f9'}},
+        y:{title:{display:true,text:'경쟁 우위',font:{size:12}},min:1,max:5.5,grid:{color:'#f1f5f9'}}
+      },
+      onClick:(e,els)=>{
+        if(els.length>0){
+          const di=els[0].datasetIndex,pi=els[0].index;
+          if(di<3) openDetailByComp(allSets[di][pi].label);
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
+// OVERVIEW: 직무별 채용 Position
+// ============================================================
+function getCategory(gap) {
+  if(gap > 1.5) return {label:'전략적 채용',rqmtType:'전략적 Rqmt',cls:'urgency-hire',rqmtCls:'rqmt-strategic',color:'#dc2626',desc:'내부 보강 불가, 경력직 채용 필요'};
+  if(gap > 0.8) return {label:'역량 강화',rqmtType:'운영적 Rqmt',cls:'urgency-develop',rqmtCls:'rqmt-operational',color:'#d97706',desc:'교육·OJT로 보강 가능'};
+  return {label:'자기개발 권장',rqmtType:'운영적 Rqmt',cls:'urgency-self',rqmtCls:'rqmt-operational',color:'#10b981',desc:'개인 학습으로 충분'};
+}
+
+function renderOverviewPositions() {
+  const allItems = DATA.gaps.slice().sort((a,b)=>b.gap-a.gap);
+
+  let html = '<div class="gap-table-wrap"><table class="gap-table"><thead><tr>';
+  html += '<th>No.</th><th>Component</th><th>우선적 강화 필요 Requirement</th><th>경쟁 우위</th><th>전략적 중요도</th><th>Gap</th>';
+  html += '</tr></thead><tbody>';
+
+  allItems.forEach((g, i) => {
+    const no = i + 1;
+    const catInfo = getCategory(g.gap);
+    const rowCls = g.gap > 1.5 ? 'row-hire' : g.gap > 0.8 ? 'row-develop' : 'row-self';
+    const gapColor = g.gap > 1.5 ? '#dc2626' : g.gap > 0.8 ? '#d97706' : '#059669';
+    const badgeBg = g.gap > 1.5 ? '#fee2e2' : g.gap > 0.8 ? '#fef3c7' : '#d1fae5';
+    const catLabel = catInfo.label;
+
+    html += `<tr class="${rowCls}" onclick="openDetailByComp('${g.comp.replace(/'/g,"\\'")}')">
+      <td class="col-no" style="color:${gapColor};">${no}</td>
+      <td class="col-comp">${g.comp}</td>
+      <td class="col-rqmt">${g.rqmt}</td>
+      <td class="col-num">${g.adv.toFixed(2)}</td>
+      <td class="col-num">${g.imp.toFixed(2)}</td>
+      <td class="col-gap">
+        <span class="gap-cat-badge" style="background:${badgeBg};color:${gapColor};">${g.gap > 0 ? '+' : ''}${g.gap.toFixed(2)}</span>
+      </td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('overview-positions').innerHTML = html;
+}
+
+// ============================================================
+// BFM MATRIX TABLE (Level 병합, 가운데 정렬)
+// ============================================================
+function renderMatrix() {
+  const headers = DATA.headers;
+  const levels = DATA.levels;
+  const grid = {};
+  DATA.bfm.forEach(b => { grid[b.row+'_'+b.col] = b; });
+
+  // Count rows per level for rowspan
+  const levelSpans = [];
+  let i = 0;
+  while(i < levels.length) {
+    let j = i;
+    while(j < levels.length && levels[j] === levels[i]) j++;
+    levelSpans.push({level: levels[i], start: i, count: j - i});
+    i = j;
+  }
+
+  let html = '<thead><tr><th>Level</th>';
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+
+  for(let r=0; r<levels.length; r++) {
+    const lvl = levels[r];
+    const lvCls = lvl==='Direct'?'level-direct':lvl==='Control'?'level-control':'level-execute';
+    html += '<tr>';
+
+    // Check if this row starts a new level group
+    const span = levelSpans.find(s => s.start === r);
+    if(span) {
+      html += `<td class="level-cell ${lvCls}" rowspan="${span.count}">${span.level}</td>`;
+    }
+
+    for(let c=0; c<headers.length; c++) {
+      const b = grid[r+'_'+c];
+      if(b) {
+        const g = gapByComp[b.component];
+        const gapVal = g ? g.gap : 0;
+        const badgeCls = gapVal > 1.5 ? 'gap-pos' : gapVal > 0.8 ? 'gap-warn' : 'gap-neg';
+        const badgeText = gapVal > 1.5 ? `전략적 채용 ${gapVal>0?'+':''}${gapVal.toFixed(2)}` : gapVal > 0.8 ? `역량 강화 ${gapVal>0?'+':''}${gapVal.toFixed(2)}` : `자기개발 권장 ${gapVal.toFixed(2)}`;
+        html += `<td onclick="openDetail(${r},${c})">
+          <div class="comp-name">${b.component}</div>
+          <div class="comp-rqmt">${(b.rqmt||'').replace(/\n/g,'<br>')}</div>
+          <span class="gap-badge ${badgeCls}">${badgeText}</span>
+        </td>`;
+      } else {
+        html += '<td class="empty"></td>';
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  document.getElementById('bfm-table').innerHTML = html;
+}
+
+// ============================================================
+// DETAIL PANEL
+// ============================================================
+function openDetail(row, col) {
+  const b = DATA.bfm.find(x=>x.row===row && x.col===col);
+  if(!b) return;
+  openDetailByComp(b.component);
+}
+
+function openDetailByComp(compName) {
+  const b = DATA.bfm.find(x=>x.component===compName);
+  const g = gapByComp[compName];
+  if(!b || !g) return;
+
+  const gapVal = g.gap;
+  const isGap = gapVal > 0;
+  const lvCls = b.level==='Direct'?'level-direct':b.level==='Control'?'level-control':'level-execute';
+
+  const catInfo = getCategory(gapVal);
+  const posLevel = b.level==='Direct'?'Senior Director / VP':b.level==='Control'?'Manager / Sr.Manager':'Engineer / Sr.Engineer';
+  let hiringHtml = '';
+  if(gapVal > 1.5) {
+    hiringHtml = `
+      <div class="hiring-rec">
+        <h4>▲ 전략적 채용 | 전략적 Rqmt</h4>
+        <div class="pos-title-d">${b.component} 전문가 (경력직 채용 필요)</div>
+        <div class="pos-detail-d">
+          <strong>직급:</strong> ${posLevel}<br>
+          <strong>소속:</strong> ${b.competency} 부문<br>
+          <strong>대응:</strong> 내부 보강 불가 — 외부 경력직 채용 필수<br>
+          <strong>핵심 Requirement:</strong> ${g.rqmt}<br>
+          <strong>사유:</strong> 전략적 중요도(${g.imp.toFixed(2)}) 대비 경쟁우위(${g.adv.toFixed(2)})가 현저히 부족 (Gap +${gapVal.toFixed(2)})
+        </div>
+      </div>`;
+  } else if(gapVal > 0.8) {
+    hiringHtml = `
+      <div class="hiring-rec" style="background:linear-gradient(135deg,#422006,#1c1917);">
+        <h4 style="color:#fbbf24;">● 역량 강화 | 운영적 Rqmt</h4>
+        <div class="pos-title-d">${b.component} 역량 개발</div>
+        <div class="pos-detail-d">
+          <strong>직급:</strong> ${posLevel}<br>
+          <strong>소속:</strong> ${b.competency} 부문<br>
+          <strong>대응:</strong> 교육·OJT·멘토링으로 내부 보강 가능<br>
+          <strong>핵심 Requirement:</strong> ${g.rqmt}<br>
+          <strong>사유:</strong> 전략적 중요도(${g.imp.toFixed(2)}) 대비 경쟁우위(${g.adv.toFixed(2)}) 격차 존재 (Gap +${gapVal.toFixed(2)})
+        </div>
+      </div>`;
+  } else {
+    hiringHtml = `
+      <div class="hiring-rec" style="background:linear-gradient(135deg,#022c22,#0f172a);">
+        <h4 style="color:#34d399;">▼ 자기개발 권장 | 운영적 Rqmt</h4>
+        <div class="no-hire">Gap이 ${gapVal.toFixed(2)}로 낮아 개인 학습으로 충분합니다. 자율적 역량 고도화를 권장합니다.</div>
+      </div>`;
+  }
+
+  document.getElementById('detailContent').innerHTML = `
+    <h3>${b.component}</h3>
+    <div class="meta">
+      <span class="${lvCls}" style="font-size:11px;">${b.level}</span>
+      <span style="background:#f1f5f9;font-size:11px;">${b.competency}</span>
+    </div>
+    <div class="detail-section">
+      <h4>Requirement</h4>
+      <div class="rqmt-text">${(b.rqmt||'').replace(/\n/g,'<br>')}</div>
+    </div>
+    <div class="score-row">
+      <div class="score-box imp"><div class="score-label">전략적 중요도</div><div class="score-val">${g.imp.toFixed(2)}</div></div>
+      <div class="score-box adv"><div class="score-label">경쟁 우위</div><div class="score-val">${g.adv.toFixed(2)}</div></div>
+      <div class="score-box gap-box ${isGap?'':'surplus'}"><div class="score-label">Gap</div><div class="score-val">${gapVal>0?'+':''}${gapVal.toFixed(2)}</div></div>
+    </div>
+    ${hiringHtml}
+  `;
+  document.getElementById('detailOverlay').classList.add('show');
+}
+
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('show');
+}
+document.getElementById('detailOverlay').addEventListener('click', e => {
+  if(e.target === e.currentTarget) closeDetail();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+renderSummary();
+renderScatter();
+renderOverviewPositions();
+renderMatrix();
+</script>
+</body>
+</html>

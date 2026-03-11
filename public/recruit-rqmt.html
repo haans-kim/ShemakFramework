@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skill Monitoring AI Model — PoC Dashboard</title>
+<style>
+  /* ── 색상 변수 (3색 체계: Navy / Blue / Neutral) ── */
+  :root {
+    --navy:        #1B3F6A;
+    --navy-mid:    #2D5A8E;
+    --navy-light:  #4A82B8;
+    --navy-pale:   #D6E6F4;
+    --navy-bg:     #EEF5FB;
+
+    --text-dark:   #1A2535;
+    --text-mid:    #4A5568;
+    --text-light:  #8A9AB0;
+
+    --bg-page:     #F4F7FA;
+    --bg-card:     #FFFFFF;
+    --border:      #D8E4EE;
+    --border-dark: #B0C4D8;
+
+    --ok:          #E8F4EC;   --ok-text:   #2D6A42;
+    --warn:        #FEF4E8;   --warn-text: #8A5200;
+    --bad:         #FDEAEA;   --bad-text:  #8A1F1F;
+
+    --tag-ai:      #EEF5FB;   --tag-ai-text: #1B3F6A;
+    --tag-ai-bd:   #4A82B8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Malgun Gothic", "맑은 고딕", -apple-system, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-dark);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 20px 24px 32px;
+    min-width: 1400px;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--navy);
+    border-radius: 8px;
+    padding: 16px 24px 14px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .header-title { color: #fff; font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-sub   { color: var(--navy-pale); font-size: 11px; margin-top: 4px; }
+  .header-meta  { color: var(--navy-pale); font-size: 10.5px; text-align: right; }
+
+  /* ── Section labels ── */
+  .section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    color: var(--navy-mid); text-transform: uppercase;
+    margin-bottom: 8px; padding-left: 2px;
+  }
+  .section-divider {
+    border: none; border-top: 1.5px solid var(--border);
+    margin: 16px 0 12px;
+  }
+
+  /* ── KPI Strip ── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 10px 10px;
+    border-top: 3px solid var(--navy-light);
+    text-align: center;
+  }
+  .kpi-num   { font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1; }
+  .kpi-label { font-size: 9.5px; color: var(--text-mid); margin-top: 4px; line-height: 1.4; }
+
+  /* ── Step Flow ── */
+  .flow-wrap {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+  }
+  .flow-input {
+    min-width: 168px;
+    background: var(--navy);
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flow-input-title {
+    color: var(--navy-pale); font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px;
+  }
+  .post-card {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    padding: 6px 8px;
+    border-left: 3px solid;
+  }
+  .post-card-title { color: #fff; font-size: 9.5px; font-weight: 700; }
+  .post-card-desc  { color: var(--navy-pale); font-size: 8.5px; margin-top: 2px; line-height: 1.4; }
+
+  .flow-arrow {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    background: var(--navy-bg);
+    color: var(--navy-mid); font-size: 14px;
+  }
+
+  .flow-steps {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-left: 1px solid var(--border);
+  }
+  .step-col {
+    padding: 12px 10px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .step-col:last-child { border-right: none; }
+  .step-num {
+    font-size: 8.5px; font-weight: 700; color: var(--navy-light);
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  .step-name {
+    font-size: 12px; font-weight: 700; color: var(--navy);
+    line-height: 1.3;
+  }
+  .step-tech {
+    background: var(--tag-ai);
+    border: 1px solid var(--tag-ai-bd);
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 8.5px;
+    color: var(--tag-ai-text);
+    line-height: 1.5;
+    flex: 1;
+  }
+  .step-result {
+    background: var(--navy-bg);
+    border-radius: 4px;
+    padding: 5px 6px;
+    font-size: 9px;
+    color: var(--navy-mid);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* ── 2-column results ── */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 9px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-header-sub { color: var(--navy-pale); font-size: 9.5px; font-weight: 400; }
+  .card-body { padding: 12px 14px; }
+
+  /* ── Gap Heatmap ── */
+  .heatmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+  }
+  .heatmap-table th {
+    background: var(--navy-bg);
+    color: var(--navy);
+    font-weight: 700;
+    padding: 6px 8px;
+    text-align: center;
+    border: 1px solid var(--border);
+    font-size: 10px;
+  }
+  .heatmap-table th.skill-col { text-align: left; min-width: 130px; }
+  .heatmap-table td {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: 10px;
+  }
+  .heatmap-table td.skill-name {
+    text-align: left;
+    color: var(--text-dark);
+    font-weight: 500;
+    background: var(--bg-page);
+  }
+  .cell-ok   { background: var(--ok);   color: var(--ok-text);   font-weight: 600; }
+  .cell-warn { background: var(--warn); color: var(--warn-text); font-weight: 600; }
+  .cell-bad  { background: var(--bad);  color: var(--bad-text);  font-weight: 700; }
+  .cell-mid  { background: #FFF7EE;     color: #7A4500;          font-weight: 600; }
+
+  .legend-row {
+    display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 9.5px; color: var(--text-mid);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── Rqmt Table ── */
+  .rqmt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+  }
+  .rqmt-table th {
+    background: var(--navy-bg);
+    color: var(--navy);
+    font-weight: 700;
+    padding: 6px 8px;
+    text-align: left;
+    border: 1px solid var(--border);
+    font-size: 9.5px;
+  }
+  .rqmt-table td {
+    padding: 5.5px 8px;
+    border: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .rqmt-table tr:nth-child(even) td { background: var(--bg-page); }
+  .rqmt-table tr:hover td { background: var(--navy-bg); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-strategic { background: var(--bad);  color: var(--bad-text); }
+  .badge-ops       { background: var(--warn); color: var(--warn-text); }
+  .badge-team-pbv  { background: var(--navy-pale); color: var(--navy); }
+  .badge-team-front{ background: var(--navy-bg);   color: var(--navy-mid); }
+  .badge-team-prod { background: #EFF8F0; color: #2D6A42; }
+
+  .score-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .score-bar-bg   { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 3px; background: var(--navy-light); }
+  .score-num      { font-size: 9.5px; font-weight: 700; color: var(--navy); min-width: 32px; text-align: right; }
+
+  .rqmt-skill-name { font-size: 10.5px; font-weight: 600; color: var(--text-dark); }
+  .rqmt-skill-desc { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+  .rqmt-skill-desc-text { font-size: 8.5px; color: var(--text-mid); line-height: 1.4; }
+
+  /* ── Bottom: Insights + Summary ── */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 12px;
+  }
+  .insight-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .insight-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 11px 13px;
+    border-left: 3px solid var(--navy-light);
+  }
+  .insight-title {
+    font-size: 11px; font-weight: 700; color: var(--navy); margin-bottom: 4px;
+  }
+  .insight-desc {
+    font-size: 10px; color: var(--text-mid); line-height: 1.5;
+  }
+
+  .summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .summary-card .card-header { background: var(--navy); }
+  .rqmt-type-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .rqmt-type-row:last-child { border-bottom: none; }
+  .rqmt-big-num  { font-size: 26px; font-weight: 700; color: var(--navy); min-width: 42px; }
+  .rqmt-type-info .type-label { font-size: 10.5px; font-weight: 700; color: var(--text-dark); }
+  .rqmt-type-info .type-sub   { font-size: 9.5px; color: var(--text-mid); margin-top: 2px; }
+  .rqmt-pct-bar {
+    flex: 1; height: 7px; background: var(--border);
+    border-radius: 4px; overflow: hidden;
+  }
+  .rqmt-pct-fill { height: 100%; border-radius: 4px; }
+
+  /* ── Conclusion Banner ── */
+  .conclusion {
+    background: var(--navy);
+    border-radius: 6px;
+    padding: 13px 20px;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .conclusion-label {
+    color: var(--navy-pale);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    min-width: 40px;
+  }
+  .conclusion-text {
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    flex: 1;
+    line-height: 1.5;
+  }
+  .conclusion-tag {
+    background: rgba(255,255,255,0.15);
+    color: var(--navy-pale);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 9.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* ── Footnote ── */
+  .footnote {
+    margin-top: 14px;
+    padding: 9px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 9px;
+    color: var(--text-light);
+    line-height: 1.7;
+  }
+  .fn-title { font-weight: 700; color: var(--text-mid); margin-bottom: 3px; }
+
+  .tag-ai {
+    display: inline-block;
+    background: var(--tag-ai);
+    border: 1px solid var(--tag-ai-bd);
+    color: var(--navy);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+
+  /* ── Level Badge ── */
+  .level-badge {
+    display: inline-block;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 8.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .lv1 { background: #E8EDF2; color: #4A5568; border: 1px solid #B0C4D8; }
+  .lv2 { background: var(--navy-bg); color: var(--navy-mid); border: 1px solid var(--navy-light); }
+  .lv3 { background: #FEF4E8; color: #8A5200; border: 1px solid #E8A040; }
+  .lv4 { background: var(--bad); color: var(--bad-text); border: 1px solid #C88080; }
+
+  /* ── Cross-Level Table ── */
+  .level-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .level-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10px;
+  }
+  .level-table th {
+    background: var(--navy-bg);
+    color: var(--navy);
+    font-weight: 700;
+    padding: 6px 8px;
+    text-align: center;
+    border: 1px solid var(--border);
+    font-size: 9.5px;
+  }
+  .level-table th.skill-col { text-align: left; min-width: 140px; }
+  .level-table td {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: 9.5px;
+  }
+  .level-table td.skill-name { text-align: left; font-weight: 500; background: var(--bg-page); }
+  .level-table td.base-col { background: var(--navy-pale); font-weight: 700; color: var(--navy); }
+  .lv-val-1 { background: #F0F4F8; color: #6B7C93; }
+  .lv-val-2 { background: var(--navy-bg); color: var(--navy-mid); }
+  .lv-val-3 { background: #FEF4E8; color: #8A5200; }
+  .lv-val-4 { background: #FDEAEA; color: #8A1F1F; font-weight: 700; }
+
+  /* ── Level 텍스트 기술 셀 ── */
+  .lv-cell { text-align: left !important; vertical-align: top; padding: 5px 7px !important; }
+  .lv-text { font-size: 8.5px; line-height: 1.55; }
+  .lv-text strong { font-size: 8px; display: block; margin-bottom: 1px; }
+
+  .level-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .level-posting-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .level-posting-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .level-posting-body { padding: 10px 12px; }
+  .level-evidence {
+    font-size: 9px;
+    color: var(--text-mid);
+    line-height: 1.6;
+    margin-bottom: 8px;
+    padding: 5px 8px;
+    background: var(--bg-page);
+    border-radius: 4px;
+    border-left: 3px solid var(--navy-light);
+  }
+
+  /* ── Section Banner ── */
+  .section-banner {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin: 20px 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-banner-title {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+  .section-banner-sub {
+    color: var(--navy-pale);
+    font-size: 10px;
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+  .section-banner-tag {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 9.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* ── Level Profile Row ── */
+  .level-profile-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .level-profile-chip {
+    border-radius: 6px;
+    padding: 9px 12px;
+  }
+  .level-profile-name {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .level-profile-desc {
+    font-size: 9px;
+    line-height: 1.6;
+    margin-top: 3px;
+  }
+
+  /* ── Tab System ── */
+  .tab-bar {
+    display: flex;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    background: var(--bg-card);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 8px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    background: var(--bg-page);
+    color: var(--text-mid);
+    border: none;
+    border-right: 1px solid var(--border);
+    text-align: center;
+    user-select: none;
+    line-height: 1.4;
+    transition: background 0.15s;
+  }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn:hover { background: var(--navy-bg); color: var(--navy); }
+  .tab-btn.active { background: var(--navy); color: #fff; }
+  .tab-step-num { font-size: 8px; display: block; opacity: 0.7; margin-bottom: 1px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .step-col.tab-active { background: var(--navy-pale); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════ -->
+<div class="header">
+  <div>
+    <div class="header-title">Skill Monitoring AI Model — PoC Dashboard</div>
+    <div class="header-sub">현대자동차 경력직 디자인 채용공고 기반 AI 모델 시연 &nbsp;|&nbsp; 기아 외장 디자이너 3건 (프론트로딩 / 양산 프로젝트 / PBV 외장디자인)</div>
+  </div>
+  <div class="header-meta">InsightGroup &nbsp;|&nbsp; 2026.02.24<br>BFM 기 구축 완료 (534팀, 9 Competency)</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     KPI STRIP
+══════════════════════════════════════════════ -->
+<div class="kpi-strip" style="grid-template-columns: repeat(8, 1fr);">
+  <div class="kpi-card"><div class="kpi-num">3</div><div class="kpi-label">채용공고 수집<br>(기아 외장 디자이너)</div></div>
+  <div class="kpi-card"><div class="kpi-num">27</div><div class="kpi-label">Skill Taxonomy<br>(7개 카테고리)</div></div>
+  <div class="kpi-card"><div class="kpi-num">37</div><div class="kpi-label">평균 추출 스킬<br>(공고 3건 합산)</div></div>
+  <div class="kpi-card"><div class="kpi-num">5</div><div class="kpi-label">BFM Component<br>자동 매핑</div></div>
+  <div class="kpi-card"><div class="kpi-num">31</div><div class="kpi-label">Rqmt 자동 생성<br>(총 건수)</div></div>
+  <div class="kpi-card"><div class="kpi-num">19</div><div class="kpi-label">전략적 Rqmt<br>(경력직 채용 필요)</div></div>
+  <div class="kpi-card"><div class="kpi-num">72.5</div><div class="kpi-label">최고 우선순위<br>점수 (100점 만점)</div></div>
+  <div class="kpi-card" style="border-top-color:var(--navy);"><div class="kpi-num" style="font-size:16px;">137K</div><div class="kpi-label">Skill DB 규모<br>(7사 Skill + 14사 JD)</div></div>
+</div>
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab-btn active" onclick="switchTab(0)"><span class="tab-step-num">STEP 0</span>Skill 정의</div>
+  <div class="tab-btn" onclick="switchTab(1)"><span class="tab-step-num">STEP 1</span>요구 수준 Leveling</div>
+  <div class="tab-btn" onclick="switchTab(2)"><span class="tab-step-num">STEP 2</span>Skill 도출 및 GAP 감지</div>
+  <div class="tab-btn" onclick="switchTab(3)"><span class="tab-step-num">STEP 3 ★</span>채용 Rqmt 생성</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TAB PANELS
+══════════════════════════════════════════════ -->
+
+<!-- PANEL 탭0: Skill 정의 -->
+<div class="tab-panel active" id="panel-step0">
+<div class="section-label">STEP 0 — Skill 정의 (JD·PP 역추론 → 최소 기준 수준 확정)</div>
+<div style="display:grid;grid-template-columns:1fr 1.8fr;gap:12px;margin-bottom:16px;">
+  <div class="card">
+    <div class="card-header">AI 기법 &amp; 입력 소스 <span class="card-header-sub">① LLM Reverse Reasoning</span></div>
+    <div class="card-body">
+      <div style="background:var(--tag-ai);border:1px solid var(--tag-ai-bd);border-radius:6px;padding:10px 12px;margin-bottom:10px;">
+        <div style="font-size:10.5px;font-weight:700;color:var(--navy);margin-bottom:4px;">① LLM Reverse Reasoning</div>
+        <div style="font-size:9.5px;color:var(--text-mid);line-height:1.6;">JD·PP·업무구조를 역으로 분석하여 "이 직무 수행에 필요한 최소 Level"을 추론. 3소스 중 Max값을 보수적 기준으로 확정.</div>
+      </div>
+      <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:6px;">
+        <div style="font-size:10px;font-weight:700;color:var(--navy);margin-bottom:2px;">① JD 역추론</div>
+        <div style="font-size:9px;color:var(--text-mid);line-height:1.5;">직무 기술서 업무범위·복잡도·독립성 분석</div>
+      </div>
+      <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:6px;">
+        <div style="font-size:10px;font-weight:700;color:var(--navy);margin-bottom:2px;">② PP 역추론</div>
+        <div style="font-size:9px;color:var(--text-mid);line-height:1.5;">직위·경력·관리 책임 기반 수준 추론</div>
+      </div>
+      <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;margin-bottom:6px;">
+        <div style="font-size:10px;font-weight:700;color:var(--navy);margin-bottom:2px;">③ 업무 구조 역추론</div>
+        <div style="font-size:9px;color:var(--text-mid);line-height:1.5;">유사 포지션 직급체계와 비교 검증</div>
+      </div>
+      <div style="background:var(--navy);border-radius:6px;padding:8px 12px;">
+        <div style="font-size:9px;font-weight:700;color:var(--navy-pale);margin-bottom:2px;">기반 데이터</div>
+        <div style="font-size:9px;color:#fff;line-height:1.5;">IG Foundation Pool: 7사 7,477건 Skill Master + 14사 130,330건 JD Master + 글로벌 웹 크롤링 통합</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">스킬별 최소 기준 수준 확정 <span class="card-header-sub">확정값 = 3소스 Max (보수적 기준) | STEP 2 Gap 분석의 기준값으로 사용</span></div>
+    <div class="card-body">
+      <table style="width:100%;border-collapse:collapse;font-size:10px;">
+        <thead><tr>
+          <th style="background:var(--navy-bg);color:var(--navy);font-weight:700;padding:6px 8px;text-align:left;border:1px solid var(--border);min-width:130px;">스킬</th>
+          <th style="background:var(--navy-bg);color:var(--navy);font-weight:700;padding:6px 8px;text-align:center;border:1px solid var(--border);">JD 역추론</th>
+          <th style="background:var(--navy-bg);color:var(--navy);font-weight:700;padding:6px 8px;text-align:center;border:1px solid var(--border);">PP 역추론</th>
+          <th style="background:var(--navy-bg);color:var(--navy);font-weight:700;padding:6px 8px;text-align:center;border:1px solid var(--border);">업무 구조</th>
+          <th style="background:var(--navy-bg);color:var(--navy);font-weight:700;padding:6px 8px;text-align:center;border:1px solid var(--border);">확정 최소 수준</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">디자인 트렌드 분석</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv1">Lv1</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv2">Lv2</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">디자인 컨셉 개발</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv3">Lv3</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">Alias Surface 모델링</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv2">Lv2</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">Blender 모델링</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv1">Lv1</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv2">Lv2</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">양산 프로젝트 관리</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv3">Lv3</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">아웃소싱 관리</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv3">Lv3</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">PBV 특화 디자인</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv4">Lv4</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv3">Lv3</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--bad);font-weight:700;color:var(--bad-text);"><span class="level-badge lv4">Lv4</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">프레젠테이션/보고</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv2">Lv2</span></td></tr>
+          <tr><td style="padding:5px 8px;border:1px solid var(--border);font-weight:500;background:var(--bg-page);">양산 적용성 검토</td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;"><span class="level-badge lv2">Lv2</span></td><td style="padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--navy-pale);font-weight:700;color:var(--navy);"><span class="level-badge lv2">Lv2</span></td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:8.5px;color:var(--text-light);margin-top:8px;">★ 확정 최소 수준 = STEP 2 Gap 분석의 기준값. 현재 팀 역량이 이 수준 미달 시 Gap 발생.</div>
+    </div>
+  </div>
+</div>
+</div><!-- /panel-step0 -->
+
+
+<!-- PANEL 탭2: Skill 도출 및 GAP 감지 -->
+<div class="tab-panel" id="panel-5">
+<div class="section-label">STEP 2 — Skill 도출 및 GAP 감지</div>
+
+<!-- Skill 도출 요약 -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+  <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+    <div style="font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px;">③ NER + LLM Extraction &nbsp;<span class="tag-ai">Skill 도출</span></div>
+    <div style="font-size:9px;color:var(--text-mid);line-height:1.6;">채용공고 텍스트에서 스킬명 자동 추출 → Skill Taxonomy 27개 (7 카테고리) 매핑. 공고 3건에서 평균 12개 스킬 추출.</div>
+  </div>
+  <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+    <div style="font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px;">④ Embedding Similarity &nbsp;<span class="tag-ai">BFM 매핑</span></div>
+    <div style="font-size:9px;color:var(--text-mid);line-height:1.6;">추출 스킬 → 벡터 임베딩 → BFM Component 코사인 유사도 자동 매핑. 5개 Component 연결 완료 (유사도 ≥ 0.40).</div>
+  </div>
+  <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+    <div style="font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px;">⑤ Anomaly Detection &nbsp;<span class="tag-ai">Gap 감지</span></div>
+    <div style="font-size:9px;color:var(--text-mid);line-height:1.6;">스킬 × Level별 시장 요구 수준 vs 팀 현재 역량 비교 → Gap 매트릭스 자동 산출. 11개 스킬 × 3팀.</div>
+  </div>
+</div>
+
+<!-- BFM Component 매핑 결과 -->
+<div style="display:grid;grid-template-columns:1fr 1.2fr;gap:12px;margin-bottom:12px;">
+  <div class="card">
+    <div class="card-header">BFM Component 매핑 결과 <span class="card-header-sub">5개 Component 자동 매핑 완료 &nbsp;|&nbsp; ④ Embedding Similarity</span></div>
+    <div class="card-body">
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:18px;font-weight:700;color:var(--navy);min-width:26px;">8</div><div><div style="font-size:10px;font-weight:700;color:var(--navy);">Design Creativity &amp; Ideation</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;"><span style="background:var(--warn);color:var(--warn-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:600;">디자인 컨셉 개발 <span style="font-size:8px;">+1.3</span></span><span style="background:#FFF7EE;color:#7A4500;border-radius:3px;padding:1px 6px;font-size:9px;">디자인 트렌드 분석 <span style="font-size:8px;">+0.9</span></span><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">프론트로딩 기법 <span style="font-size:8px;">+1.9</span></span><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">PBV 특화 디자인 <span style="font-size:8px;">+2.7</span></span><span style="background:#FFF7EE;color:#7A4500;border-radius:3px;padding:1px 6px;font-size:9px;">벤치마킹/경쟁 분석 <span style="font-size:8px;">+0.9</span></span></div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:18px;font-weight:700;color:var(--navy);min-width:26px;">7</div><div><div style="font-size:10px;font-weight:700;color:var(--navy);">Digital Modeling &amp; Visualization</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;"><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">Alias Surface 모델링 <span style="font-size:8px;">+1.7</span></span><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">Blender 모델링 <span style="font-size:8px;">+2.1</span></span><span style="background:var(--warn);color:var(--warn-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:600;">VRED 시각화 <span style="font-size:8px;">+1.2</span></span><span style="background:var(--navy-pale);color:var(--navy);border-radius:3px;padding:1px 6px;font-size:9px;">디지털 모델링 프로세스</span></div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:18px;font-weight:700;color:var(--navy);min-width:26px;">6</div><div><div style="font-size:10px;font-weight:700;color:var(--navy);">Project &amp; Production Management</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;"><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">양산 프로젝트 관리 <span style="font-size:8px;">+1.9</span></span><span style="background:#FFF7EE;color:#7A4500;border-radius:3px;padding:1px 6px;font-size:9px;">양산 적용성 검토 <span style="font-size:8px;">+0.8</span></span><span style="background:var(--navy-pale);color:var(--navy);border-radius:3px;padding:1px 6px;font-size:9px;">글로벌 컴피티션</span></div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="font-size:18px;font-weight:700;color:var(--navy);min-width:26px;">5</div><div><div style="font-size:10px;font-weight:700;color:var(--navy);">External Partner Management</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;"><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">아웃소싱 관리 <span style="font-size:8px;">+2.4</span></span><span style="background:var(--navy-pale);color:var(--navy);border-radius:3px;padding:1px 6px;font-size:9px;">협력사 품질 관리</span></div></div></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;"><div style="font-size:18px;font-weight:700;color:var(--navy);min-width:26px;">4</div><div><div style="font-size:10px;font-weight:700;color:var(--navy);">Stakeholder Communication</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;"><span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-size:9px;font-weight:700;">프레젠테이션/보고 <span style="font-size:8px;">+2.0</span></span><span style="background:var(--navy-pale);color:var(--navy);border-radius:3px;padding:1px 6px;font-size:9px;">글로벌 팀 협업</span></div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">공고별 BFM Component 매핑 점수 <span class="card-header-sub">Embedding Cosine Similarity | 0.0~1.0 | ≥ 0.40 = 유의미 매핑 &nbsp;|&nbsp; 실제 PoC Result 엑셀 Sheet4 기반</span></div>
+    <div class="card-body">
+      <table class="heatmap-table">
+        <thead>
+          <tr>
+            <th class="skill-col">BFM Component</th>
+            <th>POST-001<br><span style="font-weight:400;font-size:8.5px;opacity:0.8;">프론트로딩 (Lv2)</span></th>
+            <th>POST-002<br><span style="font-weight:400;font-size:8.5px;opacity:0.8;">양산 프로젝트 (Lv3)</span></th>
+            <th>POST-003<br><span style="font-weight:400;font-size:8.5px;opacity:0.8;">PBV 외장 (Lv4)</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="skill-name">D-01 외장디자인 (Exterior Design)</td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:45%"></div></div><span class="score-num">0.45</span></div></td>
+            <td style="background:var(--bg-page);color:var(--text-light);text-align:center;">—</td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:47%"></div></div><span class="score-num">0.47</span></div></td></tr>
+          <tr><td class="skill-name">D-04 디지털 모델링 (Digital Modeling)</td>
+            <td style="background:var(--bg-page);color:var(--text-light);text-align:center;">—</td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:55%"></div></div><span class="score-num">0.55</span></div></td>
+            <td style="background:var(--bg-page);color:var(--text-light);text-align:center;">—</td></tr>
+          <tr><td class="skill-name">D-05 디자인전략 (Design Strategy)</td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:43%"></div></div><span class="score-num">0.43</span></div></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:60%;background:var(--navy)"></div></div><span class="score-num" style="color:var(--navy);font-weight:900;">0.60</span></div></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:40%"></div></div><span class="score-num">0.40</span></div></td></tr>
+          <tr><td class="skill-name">D-07 디자인프로젝트관리 (Project Mgmt)</td>
+            <td style="background:var(--bg-page);color:var(--text-light);text-align:center;">—</td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:58%"></div></div><span class="score-num">0.58</span></div></td>
+            <td style="background:var(--bg-page);color:var(--text-light);text-align:center;">—</td></tr>
+        </tbody>
+      </table>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--navy);"></div>최고 매핑 (≥ 0.55)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--navy-light);"></div>유의미 매핑 (0.40 ~ 0.54)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--bg-page);border:1px solid var(--border);"></div>미매핑</div>
+        <div style="font-size:9px;color:var(--text-light);margin-left:auto;">POST-002 양산 공고가 D-05·D-07에서 최고 매핑 달성</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- Gap Heatmap -->
+  <div class="card">
+    <div class="card-header">
+      Gap 분석 히트맵
+      <span class="card-header-sub">Gap = 시장 요구 수준(공고 추출) − 팀 현재 역량(시뮬레이션) &nbsp;|&nbsp; 스킬 11개 × 직무유형 3개</span>
+    </div>
+    <div class="card-body">
+      <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;margin-bottom:9px;font-size:9.5px;color:var(--navy-mid);line-height:1.6;">
+        <strong style="color:var(--navy);">Gap 산출 방식</strong> &nbsp;=&nbsp;
+        각 공고(POST-001~003)에서 AI 추출한 <strong>스킬 요구 수준</strong>
+        &nbsp;−&nbsp;
+        해당 직무유형 팀의 <strong>현재 역량 수준</strong>(시뮬레이션 대체)
+        &nbsp;&nbsp;
+        <span style="color:var(--text-light);">※ 양수(+) = 부족 &nbsp;/&nbsp; 음수(−) = 충족</span>
+        <br>
+        <span style="color:var(--navy);font-weight:700;">변환 예시:</span>
+        STEP 0 확정 최소 수준 Lv3 = 수치 3.0 &nbsp;→&nbsp; 팀 현재 역량 Lv1.7(시뮬레이션) &nbsp;→&nbsp; <strong>Gap = 3.0 − 1.7 = +1.3 (주의)</strong>
+        &nbsp;&nbsp;
+        <span style="color:var(--text-light);">※ STEP 0 확정 최소 수준(정수 Level)이 본 히트맵의 기준값으로 직접 사용됩니다.</span>
+      </div>
+      <table class="heatmap-table">
+        <thead>
+          <tr>
+            <th class="skill-col">스킬</th>
+            <th>프론트로딩팀<br><span style="font-weight:400;font-size:8.5px;opacity:0.75;">POST-001 요구 수준 기준</span></th>
+            <th>양산팀<br><span style="font-weight:400;font-size:8.5px;opacity:0.75;">POST-002 요구 수준 기준</span></th>
+            <th>PBV팀<br><span style="font-weight:400;font-size:8.5px;opacity:0.75;">POST-003 요구 수준 기준</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="skill-name">디자인 트렌드 분석</td><td class="cell-ok">−0.4  충족</td><td class="cell-mid">+0.4  경미</td><td class="cell-mid">+0.9  경미</td></tr>
+          <tr><td class="skill-name">디자인 컨셉 개발</td><td class="cell-mid">+0.6  경미</td><td class="cell-warn">+1.3  주의</td><td class="cell-mid">+0.9  경미</td></tr>
+          <tr><td class="skill-name">벤치마킹/경쟁 분석</td><td class="cell-ok">−0.1  충족</td><td class="cell-mid">+0.4  경미</td><td class="cell-mid">+0.9  경미</td></tr>
+          <tr><td class="skill-name">Alias Surface 모델링</td><td class="cell-warn">+1.2  주의</td><td class="cell-mid">+0.4  경미</td><td class="cell-bad">+1.7  부족</td></tr>
+          <tr><td class="skill-name">VRED 시각화/리뷰</td><td class="cell-mid">+0.5  경미</td><td class="cell-mid">+0.5  경미</td><td class="cell-warn">+1.2  주의</td></tr>
+          <tr><td class="skill-name">Blender 모델링</td><td class="cell-bad">+1.5  부족</td><td class="cell-warn">+1.1  주의</td><td class="cell-bad">+2.1  부족</td></tr>
+          <tr><td class="skill-name">양산 프로젝트 관리</td><td class="cell-bad">+1.9  부족</td><td class="cell-mid">+0.4  경미</td><td class="cell-mid">+0.8  경미</td></tr>
+          <tr><td class="skill-name">아웃소싱 관리</td><td class="cell-mid">+0.8  경미</td><td class="cell-mid">+0.4  경미</td><td class="cell-bad">+2.4  부족</td></tr>
+          <tr><td class="skill-name">PBV 특화 디자인</td><td class="cell-mid">+0.4  경미</td><td class="cell-mid">+0.4  경미</td><td class="cell-bad">+2.7  부족</td></tr>
+          <tr><td class="skill-name">프레젠테이션/보고</td><td class="cell-warn">+1.2  주의</td><td class="cell-warn">+1.0  주의</td><td class="cell-bad">+2.0  부족</td></tr>
+          <tr><td class="skill-name">양산 적용성 검토</td><td class="cell-mid">+0.4  경미</td><td class="cell-mid">+0.8  경미</td><td class="cell-mid">+0.8  경미</td></tr>
+        </tbody>
+      </table>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--ok);border:1px solid #2D6A42;"></div>충족 (Gap ≤ 0)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#FFF7EE;border:1px solid #8A5200;"></div>경미 (0 &lt; Gap ≤ 0.8)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--warn);border:1px solid #8A5200;"></div>주의 (0.8 &lt; Gap ≤ 1.5)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--bad);border:1px solid #8A1F1F;"></div>부족 (Gap &gt; 1.5)</div>
+        <div style="font-size:9px;color:var(--text-light);margin-left:auto;">※ 내부 인력 데이터 시뮬레이션</div>
+      </div>
+    </div>
+  </div>
+</div><!-- /panel-5 -->
+
+<!-- PANEL 탭3: 채용 Rqmt 생성 -->
+<div class="tab-panel" id="panel-6">
+<div class="section-label">STEP 3 — 채용 Rqmt 생성 결과 (팀별)</div>
+
+  <!-- Rqmt Table -->
+  <div class="card">
+    <div class="card-header">
+      RQMT 우선순위 — 팀별 그룹
+      <span class="card-header-sub">총 31건 생성 | 팀별 그룹 | 긴급도 40% + 영향도 30% + 실현성 30%</span>
+    </div>
+    <div class="card-body">
+      <div style="background:var(--navy-bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;margin-bottom:9px;font-size:9.5px;color:var(--navy-mid);line-height:1.6;">
+        <strong style="color:var(--navy);">Rqmt 유형 분류 기준</strong> &nbsp;|&nbsp;
+        <span style="background:var(--bad);color:var(--bad-text);border-radius:3px;padding:1px 6px;font-weight:700;font-size:9px;">전략적 채용</span> Gap &gt; 1.5 (내부 보강 불가, 경력직 채용 필요) &nbsp;&nbsp;
+        <span style="background:var(--warn);color:var(--warn-text);border-radius:3px;padding:1px 6px;font-weight:700;font-size:9px;">역량 강화</span> 0.8 &lt; Gap ≤ 1.5 (교육·OJT로 보강 가능) &nbsp;&nbsp;
+        <span style="background:var(--ok);color:var(--ok-text);border-radius:3px;padding:1px 6px;font-weight:700;font-size:9px;">자기개발 권장</span> Gap ≤ 0.8 (개인 학습으로 충분)
+      </div>
+      <table class="rqmt-table">
+        <thead>
+          <tr>
+            <th style="width:28px;">#</th>
+            <th>스킬 &amp; 요구 수준 (행동 기술)</th>
+            <th style="width:55px;">Gap</th>
+            <th style="width:80px;">유형</th>
+            <th style="width:120px;">우선순위 점수</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- PBV팀 -->
+          <tr style="background:var(--navy) !important;">
+            <td colspan="5" style="background:var(--navy);color:#fff;font-weight:700;font-size:10px;padding:7px 10px;border:none;">
+              PBV팀 &nbsp;|&nbsp; Lv4 관리자급 &nbsp;|&nbsp; 전략적 채용 필요 5건 &nbsp;·&nbsp; Gap 1.7~2.7
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;color:var(--bad-text);">1</td>
+            <td><div class="rqmt-skill-name">PBV 특화 디자인</div><div class="rqmt-skill-desc"><span class="level-badge lv4">Lv4</span><span class="rqmt-skill-desc-text">PBV 포트폴리오 전략 총괄 · 베이스카/컨버전스 디자인 방향 결정</span></div></td>
+            <td style="font-weight:700;color:var(--bad-text);">+2.7</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:72.5%"></div></div><span class="score-num">72.5</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;color:var(--bad-text);">2</td>
+            <td><div class="rqmt-skill-name">아웃소싱 관리</div><div class="rqmt-skill-desc"><span class="level-badge lv4">Lv4</span><span class="rqmt-skill-desc-text">아웃소싱 전략·계약 협상 총괄 · 협력사 품질/일정 전체 책임</span></div></td>
+            <td style="font-weight:700;color:var(--bad-text);">+2.4</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:70.1%"></div></div><span class="score-num">70.1</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;color:var(--bad-text);">3</td>
+            <td><div class="rqmt-skill-name">Blender 모델링</div><div class="rqmt-skill-desc"><span class="level-badge lv4">Lv4</span><span class="rqmt-skill-desc-text">3D 디지털 전략·표준 수립 · 팀 워크플로우 체계화 주도</span></div></td>
+            <td style="font-weight:700;color:var(--bad-text);">+2.1</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:67.8%"></div></div><span class="score-num">67.8</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;color:var(--bad-text);">4</td>
+            <td><div class="rqmt-skill-name">프레젠테이션/보고</div><div class="rqmt-skill-desc"><span class="level-badge lv4">Lv4</span><span class="rqmt-skill-desc-text">이해관계자 전략 발표·설득 · 경영진/외부 파트너 커뮤니케이션 주도</span></div></td>
+            <td style="font-weight:700;color:var(--bad-text);">+2.0</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:65.3%"></div></div><span class="score-num">65.3</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;color:var(--bad-text);">5</td>
+            <td><div class="rqmt-skill-name">Alias Surface 모델링</div><div class="rqmt-skill-desc"><span class="level-badge lv4">Lv4</span><span class="rqmt-skill-desc-text">서페이스 기준·평가 체계 수립 · 팀 전체 모델링 품질 관리 책임</span></div></td>
+            <td style="font-weight:700;color:var(--bad-text);">+1.7</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:60.8%"></div></div><span class="score-num">60.8</span></div></td>
+          </tr>
+          <!-- 프론트로딩팀 -->
+          <tr style="background:var(--navy-mid) !important;">
+            <td colspan="5" style="background:var(--navy-mid);color:#fff;font-weight:700;font-size:10px;padding:7px 10px;border:none;">
+              프론트로딩팀 &nbsp;|&nbsp; Lv2 실무자급 &nbsp;|&nbsp; 전략적 채용 2건 + 역량강화 2건 &nbsp;·&nbsp; Gap 1.2~1.9
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;">6</td>
+            <td><div class="rqmt-skill-name">프론트로딩 기법</div><div class="rqmt-skill-desc"><span class="level-badge lv2">Lv2</span><span class="rqmt-skill-desc-text">선행 연구 단독 수행 · 신규 타이폴로지 아이덴티티 독립 제안</span></div></td>
+            <td style="font-weight:700;color:var(--bad-text);">+1.9</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:63.2%"></div></div><span class="score-num">63.2</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;font-weight:700;">7</td>
+            <td><div class="rqmt-skill-name">Blender 모델링</div><div class="rqmt-skill-desc"><span class="level-badge lv2">Lv2</span><span class="rqmt-skill-desc-text">디지털 목업 독립 제작 · 디자인 검증용 3D 모델 단독 구현</span></div></td>
+            <td style="font-weight:700;color:var(--warn-text);">+1.5</td>
+            <td><span class="badge badge-strategic">전략적 채용</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:58.0%"></div></div><span class="score-num">58.0</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;">8</td>
+            <td><div class="rqmt-skill-name">Alias Surface 모델링</div><div class="rqmt-skill-desc"><span class="level-badge lv2">Lv2</span><span class="rqmt-skill-desc-text">A급 서페이스 독립 구현 · 곡면 연속성 스스로 검토·수정</span></div></td>
+            <td style="color:var(--warn-text);">+1.2</td>
+            <td><span class="badge badge-ops">역량 강화</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:50.1%;background:var(--navy-mid)"></div></div><span class="score-num">50.1</span></div></td>
+          </tr>
+          <tr>
+            <td style="text-align:center;">9</td>
+            <td><div class="rqmt-skill-name">프레젠테이션/보고</div><div class="rqmt-skill-desc"><span class="level-badge lv2">Lv2</span><span class="rqmt-skill-desc-text">디자인 리뷰 독립 발표 · 팀 내 검토 회의 발표 주도</span></div></td>
+            <td style="color:var(--warn-text);">+1.2</td>
+            <td><span class="badge badge-ops">역량 강화</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:49.5%;background:var(--navy-mid)"></div></div><span class="score-num">49.5</span></div></td>
+          </tr>
+          <!-- 양산팀 -->
+          <tr style="background:#2D6A42 !important;">
+            <td colspan="5" style="background:#2D6A42;color:#fff;font-weight:700;font-size:10px;padding:7px 10px;border:none;">
+              양산팀 &nbsp;|&nbsp; Lv3 선임급 &nbsp;|&nbsp; 역량강화 1건 &nbsp;·&nbsp; Gap 1.3
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align:center;">10</td>
+            <td><div class="rqmt-skill-name">디자인 컨셉 개발</div><div class="rqmt-skill-desc"><span class="level-badge lv3">Lv3</span><span class="rqmt-skill-desc-text">차종별 컨셉 조율 총괄 · Kick Off~Sign Off 전 주기 디자인 방향 일관성 유지</span></div></td>
+            <td style="color:var(--warn-text);">+1.3</td>
+            <td><span class="badge badge-ops">역량 강화</span></td>
+            <td><div class="score-bar-wrap"><div class="score-bar-bg"><div class="score-bar-fill" style="width:52.4%;background:var(--navy-mid)"></div></div><span class="score-num">52.4</span></div></td>
+          </tr>
+          <!-- 나머지 21건 요약 -->
+          <tr style="background:var(--bg-page) !important;">
+            <td colspan="5" style="background:var(--bg-page);font-weight:700;font-size:10px;padding:10px 10px 6px;border:none;color:var(--navy);">
+              ▼ 하위 21건 요약 &nbsp;|&nbsp; Gap ≤ 0.9 경미 수준 &nbsp;·&nbsp; 역량 강화 / 자기개발 권장 / 현 수준 충족
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2" style="border:1px solid var(--border);padding:8px 10px;vertical-align:top;">
+              <div style="font-size:10px;font-weight:700;color:var(--warn-text);margin-bottom:6px;">역량 강화 (교육·OJT) — 7건</div>
+              <div style="font-size:9px;color:var(--text-mid);line-height:1.7;">
+                11. 디자인 트렌드 분석 <span class="level-badge lv2">Lv2</span> PBV팀 Gap +0.9<br>
+                12. 디자인 컨셉 개발 <span class="level-badge lv2">Lv2</span> PBV팀 Gap +0.9<br>
+                13. 벤치마킹/경쟁 분석 <span class="level-badge lv2">Lv2</span> PBV팀 Gap +0.9<br>
+                14. 양산 적용성 검토 <span class="level-badge lv3">Lv3</span> PBV팀 Gap +0.8<br>
+                15. 양산 적용성 검토 <span class="level-badge lv2">Lv2</span> 양산팀 Gap +0.8<br>
+                16. 양산 프로젝트 관리 <span class="level-badge lv2">Lv2</span> PBV팀 Gap +0.8<br>
+                17. 아웃소싱 관리 <span class="level-badge lv2">Lv2</span> 프론트로딩팀 Gap +0.8
+              </div>
+            </td>
+            <td colspan="3" style="border:1px solid var(--border);padding:8px 10px;vertical-align:top;">
+              <div style="font-size:10px;font-weight:700;color:var(--ok-text);margin-bottom:6px;">자기개발 권장 — 4건</div>
+              <div style="font-size:9px;color:var(--text-mid);line-height:1.7;">
+                18. 디자인 컨셉 개발 <span class="level-badge lv2">Lv2</span> 프론트로딩팀 Gap +0.6<br>
+                19. VRED 시각화 <span class="level-badge lv2">Lv2</span> 프론트로딩팀 Gap +0.5<br>
+                20. VRED 시각화 <span class="level-badge lv2">Lv2</span> 양산팀 Gap +0.5<br>
+                21. 양산 적용성 검토 <span class="level-badge lv2">Lv2</span> 프론트로딩팀 Gap +0.4
+              </div>
+              <div style="font-size:10px;font-weight:700;color:#6B7C93;margin-top:8px;margin-bottom:6px;">현 수준 충족 — 10건</div>
+              <div style="font-size:9px;color:var(--text-mid);line-height:1.7;">
+                22~31. 디자인 트렌드 분석·벤치마킹·양산관리 등<br>
+                프론트로딩팀·양산팀 Gap ≤ 0.4 &nbsp;|&nbsp; 추가 조치 불요
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- ══════════════════════════════════════════════
+     INSIGHTS + SUMMARY (panel-6 계속)
+══════════════════════════════════════════════ -->
+<div class="section-label">주요 인사이트 &amp; 결과 요약</div>
+<div class="bottom-grid">
+
+  <div class="insight-grid">
+    <div class="insight-card">
+      <div class="insight-title">PBV팀 즉시 채용 착수 필요</div>
+      <div class="insight-desc">PBV 특화 디자인·아웃소싱 관리·Blender 등 우선순위 상위 6건이 PBV팀 집중. Gap 1.7~2.7 수준으로 내부 인력 공백 상태.</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">시장 신호 선제 포착</div>
+      <div class="insight-desc">PBV 관련 스킬이 채용공고에서 최초로 등장. 기존 DB에 없던 신규 역량 수요를 모델이 자동으로 탐지.</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">기존 팀 역량 강화 병행</div>
+      <div class="insight-desc">프론트로딩팀·양산팀은 교육 및 소수 보강으로 충분. 경력직 채용보다 비용 효율적인 운영적 Rqmt 중심.</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">End-to-End 자동화 검증</div>
+      <div class="insight-desc">Skill 정의(최소수준) → Skill 현황 모니터링 → Skill 도출 및 GAP 감지 → 채용 Rqmt 생성까지 4단계 AI 자동화 프로세스 작동 확인.</div>
+    </div>
+  </div>
+
+  <div class="summary-card">
+    <div class="card-header">Rqmt 유형 분류 <span class="card-header-sub">총 31건</span></div>
+    <div class="rqmt-type-row">
+      <div class="rqmt-big-num">19</div>
+      <div class="rqmt-type-info">
+        <div class="type-label">전략적 Rqmt</div>
+        <div class="type-sub">경력직 채용 필요</div>
+      </div>
+      <div class="rqmt-pct-bar"><div class="rqmt-pct-fill" style="width:61%;background:var(--bad-text);opacity:0.7;"></div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--bad-text);min-width:30px;">61%</div>
+    </div>
+    <div class="rqmt-type-row">
+      <div class="rqmt-big-num">8</div>
+      <div class="rqmt-type-info">
+        <div class="type-label">운영적 Rqmt</div>
+        <div class="type-sub">역량 강화 교육</div>
+      </div>
+      <div class="rqmt-pct-bar"><div class="rqmt-pct-fill" style="width:26%;background:var(--warn-text);opacity:0.7;"></div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--warn-text);min-width:30px;">26%</div>
+    </div>
+    <div class="rqmt-type-row">
+      <div class="rqmt-big-num">4</div>
+      <div class="rqmt-type-info">
+        <div class="type-label">운영적 Rqmt</div>
+        <div class="type-sub">자기개발 권장</div>
+      </div>
+      <div class="rqmt-pct-bar"><div class="rqmt-pct-fill" style="width:13%;background:var(--ok-text);opacity:0.7;"></div></div>
+      <div style="font-size:11px;font-weight:700;color:var(--ok-text);min-width:30px;">13%</div>
+    </div>
+  </div>
+</div>
+</div><!-- /panel-6 -->
+
+<!-- PANEL 3: 수준 Leveling 결과 -->
+<div class="tab-panel" id="panel-3">
+<!-- ══════════════════════════════════════════════
+     LEVEL 감지 & CROSS-LEVEL REQUIREMENT
+══════════════════════════════════════════════ -->
+<div class="section-banner">
+  <div>
+    <div class="section-banner-title">STEP 1 — Skill 현황 모니터링 &nbsp;|&nbsp; 수준 Leveling &amp; 스킬별 Level 요구 행동 기술</div>
+    <div class="section-banner-sub">② LLM Reasoning — 공고별 직무 Level 자동 판정 → 각 스킬에서 Lv1~Lv4가 실제로 무엇을 할 수 있어야 하는지 행동 기술(Behavioral Description) 도출 &nbsp;|&nbsp; ★ = 감지된 기준 Level</div>
+  </div>
+  <div style="display:flex;gap:6px;flex-shrink:0;margin-left:16px;">
+    <div class="section-banner-tag">3건 공고 분석</div>
+    <div class="section-banner-tag">Lv1~Lv4 매핑</div>
+    <div class="section-banner-tag">AI 자동 판정</div>
+  </div>
+</div>
+
+<!-- Level 프로파일 요약 -->
+<div class="level-profile-row">
+  <div class="level-profile-chip" style="background:#E8EDF2;border:1px solid #B0C4D8;">
+    <div class="level-profile-name" style="color:#4A5568;">Lv1 &nbsp; 보조자</div>
+    <div class="level-profile-desc" style="color:#6B7C93;">1~2년 경력 &nbsp;|&nbsp; Execute 기초<br>지시 하에 단위 업무 수행</div>
+  </div>
+  <div class="level-profile-chip" style="background:var(--navy-bg);border:1px solid var(--navy-light);">
+    <div class="level-profile-name" style="color:var(--navy);">Lv2 &nbsp; 실무자</div>
+    <div class="level-profile-desc" style="color:var(--navy-mid);">3~5년 경력 &nbsp;|&nbsp; Execute<br>독립적 실무 수행</div>
+  </div>
+  <div class="level-profile-chip" style="background:#FEF4E8;border:1px solid #E8A040;">
+    <div class="level-profile-name" style="color:#8A5200;">Lv3 &nbsp; 선임</div>
+    <div class="level-profile-desc" style="color:#8A5200;">6~9년 경력 &nbsp;|&nbsp; Control<br>프로젝트 전 주기 총괄</div>
+  </div>
+  <div class="level-profile-chip" style="background:var(--bad);border:1px solid #C88080;">
+    <div class="level-profile-name" style="color:var(--bad-text);">Lv4 &nbsp; 관리자</div>
+    <div class="level-profile-desc" style="color:var(--bad-text);">10년+ 경력 &nbsp;|&nbsp; Direct<br>조직·외부 업체 관리 책임</div>
+  </div>
+</div>
+
+<!-- Level 감지 카드 3개 -->
+<div class="level-group">
+
+  <!-- POST-001 -->
+  <div class="level-posting-card">
+    <div class="level-posting-header">
+      POST-001 &nbsp; 프론트로딩
+      <span class="level-badge lv2" style="font-size:9.5px;">Lv2 실무자 · Execute · 3~5년</span>
+    </div>
+    <div class="level-posting-body">
+      <div class="level-evidence">
+        <strong>감지 근거:</strong> 자동차 디자인 3년 이상 경력 / 선행 연구·아이덴티티 부여 단독 수행<br>
+        <strong>판단:</strong> 독립 실무 수행 중심, 관리 책임 없음 → Lv2 실무자
+      </div>
+      <table class="level-table">
+        <thead>
+          <tr>
+            <th class="skill-col">스킬</th>
+            <th style="width:16%;"><span class="level-badge lv1">Lv1</span> 보조자</th>
+            <th style="width:16%;background:var(--navy-pale);color:var(--navy);"><span class="level-badge lv2">Lv2★</span> 실무자</th>
+            <th style="width:16%;"><span class="level-badge lv3">Lv3</span> 선임</th>
+            <th style="width:16%;"><span class="level-badge lv4">Lv4</span> 관리자</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="skill-name">디자인 트렌드 분석</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 선임 지시에 따라 패션·자동차 트렌드 자료 수집·정리, 무드보드 초안 작성</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Execute-독립:</strong> 글로벌 쇼·SNS 자체 스캔, 디자인 방향 인사이트 독립 도출·팀 내 제안</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 중장기 트렌드 지도 작성, 타 직무(마케팅·R&amp;D) 연계 전략 인사이트 제공</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 2~3년 선제 트렌드 포착·내부 공유, 회사 디자인 비전 방향 의사결정 지원</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">디자인 컨셉 개발</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 선임 컨셉에 맞춘 스케치 초안 제작, 무드보드·레퍼런스 자료 정리</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Execute-독립:</strong> 타이폴로지 연구 기반 외장 아이덴티티 컨셉 독립 개발, 팀 내 발표·피드백 반영</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 복수 컨셉 방향 평가·선정, 차종별 컨셉 일관성 조율, 디자인 리뷰 주도</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 브랜드 정체성 연계 컨셉 전략 수립, 경영진 컨셉 승인 주도, 글로벌 방향 결정</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">벤치마킹/경쟁 분석</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 경쟁사 공개 자료·사진 수집, 비교표 작성 보조</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Execute-독립:</strong> 경쟁 모델 디자인 요소 독립 분석, 포지셔닝 매트릭스 작성·팀 제안</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 전략적 포지셔닝 도출, 타 직무와 벤치마킹 결과 연계·적용 방향 조율</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 경쟁 전략 방향 결정, 경영진 의사결정 지원용 분석 보고·승인 주도</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">Alias Surface 모델링</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 기존 서페이스 파일 수정·편집, 단순 커브 패치 작업 수행</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Execute-독립:</strong> A급 서페이스 독립 구현, 곡면 연속성(G2·G3) 자체 검토·수정, 선행 연구 모델 완성</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 복합 서페이스 품질 총괄, 팀원 모델 리뷰·피드백, 양산 적용성 연계 검토</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 서페이스 품질 기준·표준 수립, 팀 전체 모델링 평가 체계 운영, 외부 협력사 기준 제시</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">양산 프로젝트 관리</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 일정표·자료 관리 보조, 회의록 작성·배포, 마감 알림 지원</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Execute-독립:</strong> 담당 파트 일정 독립 관리, 관련 부서 협업 조율, 이슈 발생 시 선임 보고</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> Kick Off~Sign Off 전 주기 디자인 일정 조율, 디자인-엔지니어링 협업 조율 주도</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 다차종 프로젝트 통합 관리·리소스 배분, 경영진 보고 기준 수립, 일정 리스크 의사결정</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">프레젠테이션/보고</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 팀 발표용 PPT·포트폴리오 자료 제작 보조, 레이아웃·이미지 편집</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Execute-독립:</strong> 디자인 리뷰·팀 검토 회의 독립 발표, 질의 응답 대응, 피드백 반영 개선</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 경영진 디자인 보고·승인 주도, 타 부문 협의 발표, 외부 파트너 커뮤니케이션</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 글로벌 포럼·경영진 전략 발표 주도, 이해관계자 설득·의사결정 촉진, 대외 브랜드 소통</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:8.5px;color:var(--text-light);margin-top:6px;">★ = 감지된 기준 Level &nbsp;|&nbsp; 각 셀 = 해당 Level에서 수행 가능한 행동 기술</div>
+    </div>
+  </div>
+
+  <!-- POST-002 -->
+  <div class="level-posting-card">
+    <div class="level-posting-header">
+      POST-002 &nbsp; 양산 프로젝트
+      <span class="level-badge lv3" style="font-size:9.5px;">Lv3 선임 · Control · 6~9년</span>
+    </div>
+    <div class="level-posting-body">
+      <div class="level-evidence">
+        <strong>감지 근거:</strong> Kick Off~Sign Off 전체 양산 주기 담당 / 글로벌 컴피티션 참여·조율<br>
+        <strong>판단:</strong> 프로젝트 전 주기 단독 담당 + 글로벌 협업 → Lv3 선임
+      </div>
+      <table class="level-table">
+        <thead>
+          <tr>
+            <th class="skill-col">스킬</th>
+            <th style="width:16%;"><span class="level-badge lv1">Lv1</span> 보조자</th>
+            <th style="width:16%;"><span class="level-badge lv2">Lv2</span> 실무자</th>
+            <th style="width:16%;background:var(--navy-pale);color:var(--navy);"><span class="level-badge lv3">Lv3★</span> 선임</th>
+            <th style="width:16%;"><span class="level-badge lv4">Lv4</span> 관리자</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="skill-name">Alias Surface 모델링</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 기존 Alias 파일 수정·편집, 단순 패치·커브 지원</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> A급 서페이스 독립 구현, 연속성(G2·G3) 자체 검토·수정</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Control:</strong> 양산 적용 서페이스 품질 총괄, 팀원 모델 리뷰·피드백, Kick Off 기준 서페이스 승인</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 서페이스 품질 기준·표준 수립, 팀 전체 모델링 평가 체계 운영, 협력사 기준 제시</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">Blender 모델링</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 기본 메쉬 모델 수정, 단순 오브젝트 작성, UV 언래핑 보조</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 디자인 검증용 3D 목업 독립 제작, 재질·조명 설정 독립 수행</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Control:</strong> 복수 컨셉 모델 품질 총괄, 팀 Blender 워크플로우 조율, 양산 연계 검토 주도</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 3D 디지털 전략·표준 수립, 팀 파이프라인 체계화 주도, 외부 협력사 검수 기준 제시</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">양산 프로젝트 관리</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 일정표·자료 관리 보조, 마감 알림 지원, 회의록 작성</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 담당 파트 일정·이슈 독립 관리, 타 부서 협업 연락 주도</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Control:</strong> Kick Off~Sign Off 전 주기 디자인 일정 단독 관리, 엔지니어링·생산 협업 조율</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 다차종 통합 관리·리소스 조율, 경영진 보고 수준 일정 리스크 의사결정</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">디자인 컨셉 개발</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 스케치 초안 제작 보조, 무드보드·레퍼런스 정리</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 컨셉 독립 개발, 팀 내 발표·피드백 반영, 스케치~3D 변환 수행</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Control:</strong> 차종별 컨셉 조율 총괄, Kick Off~Sign Off 디자인 방향 일관성 유지, 리뷰 주도</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 브랜드 컨셉 전략 수립, 경영진 컨셉 승인 주도, 글로벌 시장 연계 컨셉 의사결정</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">디지털 모델링 프로세스</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 지정 모델링 툴(Alias·Blender) 기본 운용, 파일 관리·포맷 변환 보조</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 2D 스케치→3D 모델 변환 독립 수행, 다양한 툴 연계 워크플로우 구사</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Control:</strong> 디지털-물리 Mock-up 연계 프로세스 주도, 팀 모델링 워크플로우 최적화</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 디지털 전환 전략 수립, 차세대 모델링 프로세스 도입 의사결정, 조직 교육 체계 수립</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">글로벌 컴피티션 참여</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 출품 자료 준비 보조, 포트폴리오 이미지·렌더링 정리</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 컨셉 기획~출품 자료 독립 준비, 발표 자료 독립 작성·제출</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Control:</strong> 글로벌 경쟁 출품 기획·팀 운영 주도, 출품 전략·스케줄 수립, 심사 피드백 분석</div></td>
+            <td class="lv-cell lv-val-4"><div class="lv-text"><strong>Direct:</strong> 글로벌 브랜드 전략 연계, 외부 파트너십 협상, 수상 전략·경영진 보고 주도</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:8.5px;color:var(--text-light);margin-top:6px;">★ = 감지된 기준 Level &nbsp;|&nbsp; 각 셀 = 해당 Level에서 수행 가능한 행동 기술</div>
+    </div>
+  </div>
+
+  <!-- POST-003 -->
+  <div class="level-posting-card">
+    <div class="level-posting-header">
+      POST-003 &nbsp; PBV 외장디자인
+      <span class="level-badge lv4" style="font-size:9.5px;">Lv4 관리자 · Direct · 10년+</span>
+    </div>
+    <div class="level-posting-body">
+      <div class="level-evidence">
+        <strong>감지 근거:</strong> 아웃소싱 업체 관리 및 협업 책임 / PBV 베이스카·컨버전스 양산 총괄<br>
+        <strong>판단:</strong> 외부 업체 관리 + 신규 사업 총괄 → Lv4 관리자
+      </div>
+      <table class="level-table">
+        <thead>
+          <tr>
+            <th class="skill-col">스킬</th>
+            <th style="width:16%;"><span class="level-badge lv1">Lv1</span> 보조자</th>
+            <th style="width:16%;"><span class="level-badge lv2">Lv2</span> 실무자</th>
+            <th style="width:16%;"><span class="level-badge lv3">Lv3</span> 선임</th>
+            <th style="width:16%;background:var(--navy-pale);color:var(--navy);"><span class="level-badge lv4">Lv4★</span> 관리자</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="skill-name">PBV 특화 디자인</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> PBV 레퍼런스 수집·무드보드 작성 지원, 베이스카 스케치 초안 보조</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> PBV 베이스카 외장 개념 디자인 독립 수행, 컨버전스 아이디어 제안·발표</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> PBV 베이스카·컨버전스 디자인 방향 조율, 협력사 디자인 검토·피드백 주도</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Direct:</strong> PBV 포트폴리오 전략 총괄, 베이스카~컨버전스 디자인 의사결정, 신사업 디자인 방향 정의</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">아웃소싱 관리</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 협력사 자료 취합·정리 보조, 발주 서류 초안 작성 지원</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 협력사 발주·검수 독립 수행, 납기 일정 관리, 1차 품질 검토</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 복수 협력사 품질·일정 조율, 이슈 발생 시 협력사 협의 주도, 내부 승인 보고</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Direct:</strong> 아웃소싱 전략 수립·계약 협상 총괄, 협력사 선정·평가 체계 운영, 전략적 파트너십 구축</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">Blender 모델링</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 기본 메쉬 모델링·편집, UV 언래핑 보조, 파일 포맷 변환</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> PBV 컨셉 3D 목업 독립 제작, 재질·조명 셋업, 렌더링 독립 수행</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 복수 컨셉 모델 품질 총괄, 팀 Blender 워크플로우 조율, 외부 업체 결과물 검수</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Direct:</strong> 3D 디지털 전략·워크플로우 표준 수립, 팀 역량 개발 방향 결정, 협력사 품질 기준 제시</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">양산 적용성 검토</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 부품 적합성 체크리스트 작성 보조, 엔지니어링 자료 수집 지원</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 디자인 의도의 양산 가능성 독립 검토, 공차·재질 이슈 1차 파악·보고</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 디자인-엔지니어링 양산 연계 품질 리뷰 조율, 설계 변경 협의 주도, 생산팀 협업</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Direct:</strong> 양산 적용 기준 수립·의사결정 주도, 신규 공법 도입 승인, 사업부 간 양산 전략 조율</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">프레젠테이션/보고</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 팀 발표용 PPT·포트폴리오 자료 제작 보조, 이미지·레이아웃 편집</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> 디자인 리뷰·팀 검토 회의 독립 발표, 질의 응답 대응, 피드백 반영</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 경영진 디자인 보고·승인 주도, 협력사·타 부문 발표, 외부 파트너 커뮤니케이션</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Direct:</strong> 이해관계자 전략 발표·설득 총괄, C-레벨 보고·의사결정 지원, 외부 브랜드 포럼 대표 발표</div></td>
+          </tr>
+          <tr>
+            <td class="skill-name">Alias Surface 모델링</td>
+            <td class="lv-cell lv-val-1"><div class="lv-text"><strong>Execute-보조:</strong> 기존 서페이스 수정·편집, 단순 패치·커브 작업 보조</div></td>
+            <td class="lv-cell lv-val-2"><div class="lv-text"><strong>Execute-독립:</strong> A급 서페이스 독립 구현, 곡면 연속성(G2·G3) 자체 검토·수정</div></td>
+            <td class="lv-cell lv-val-3"><div class="lv-text"><strong>Control:</strong> 복합 서페이스 품질 관리, 협력사 모델 리뷰·피드백, 양산 기준 서페이스 승인</div></td>
+            <td class="lv-cell base-col"><div class="lv-text"><strong>Direct:</strong> 서페이스 기준·평가 체계 수립, 팀·협력사 모델링 품질 총괄, 표준 문서화·교육</div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:8.5px;color:var(--text-light);margin-top:6px;">★ = 감지된 기준 Level &nbsp;|&nbsp; 각 셀 = 해당 Level에서 수행 가능한 행동 기술</div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /panel-3 -->
+
+<!-- ── Conclusion ── -->
+<div class="conclusion">
+  <div class="conclusion-label">결론</div>
+  <div class="conclusion-text">
+    PBV 외장디자인팀 경력직 채용 즉시 착수 권고 &nbsp;|&nbsp;
+    프론트로딩·양산팀은 역량 강화 교육 병행 &nbsp;|&nbsp;
+    Skill Monitoring AI Model End-to-End 프로세스 검증 완료
+  </div>
+  <div class="conclusion-tag">AI 기법 8종 적용</div>
+  <div class="conclusion-tag">PoC 검증 완료</div>
+</div>
+
+<!-- ── Footnote ── -->
+<div class="footnote">
+  <div class="fn-title">AI 기법 레퍼런스</div>
+  ① NER — 텍스트 핵심 엔터티 인식 &nbsp;|&nbsp;
+  ② LLM Information Extraction — 비정형 텍스트 구조화 &nbsp;|&nbsp;
+  ③ Embedding Similarity — 의미 유사도 매핑 &nbsp;|&nbsp;
+  ④ LLM Reasoning — 경력·업무범위 분석, Lv 판정 &nbsp;|&nbsp;
+  ⑤ LLM Reverse Reasoning — JD·PP 역추론, 최소 수준 도출 &nbsp;|&nbsp;
+  ⑥ Anomaly Detection — 이상 갭 자동 감지 &nbsp;|&nbsp;
+  ⑦ LLM Reverse Reasoning — 역추론 기반 Rqmt 생성 &nbsp;|&nbsp;
+  ⑧ Multi-criteria Scoring — 다기준 가중 우선순위 산출<br>
+  <span style="margin-top:3px;display:block;">
+  ※ 내부 인력 스킬 수준은 시뮬레이션 데이터입니다. 실제 운영 시 HR 시스템 연동으로 실측 데이터가 투입됩니다. &nbsp;|&nbsp;
+  Skill DB: IG Foundation Pool (7사 7,477건 Skill Master + 14사 130,330건 JD Master) + 글로벌 웹 크롤링 통합
+  </span>
+</div>
+
+<script>
+// 4탭 → 패널 ID 매핑 (Project Approach Step 0~3)
+const PANEL_IDS = ['panel-step0', 'panel-3', 'panel-5', 'panel-6'];
+function switchTab(n) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===n));
+  document.querySelectorAll('.step-col').forEach((c,i) => c.classList.toggle('tab-active', i===n));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(PANEL_IDS[n]);
+  if (target) target.classList.add('active');
+}
+</script>
+</body>
+</html>

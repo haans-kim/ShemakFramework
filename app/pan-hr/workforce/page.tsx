@@ -1,17 +1,19 @@
 import Link from "next/link";
 import db from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-  Users,
   AlertTriangle,
-  Clock,
-  Activity,
-  Flame,
   ArrowRight,
   ChevronRight,
+  Activity,
 } from "lucide-react";
 import { WorkforceEfficiencyChart } from "@/components/workforce/WorkforceCharts";
+import {
+  CenterLevelGrid,
+  type CenterMetrics,
+  type TeamMetrics,
+  type CompanyTotals,
+} from "@/components/workforce/CenterLevelGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -26,31 +28,32 @@ interface WorkforceRow {
   burnout_risk_level: string;
 }
 
+interface CenterRow {
+  org_code: string;
+  org_name: string;
+  headcount: number;
+}
+
+interface TeamWithCenter {
+  org_code: string;
+  org_name: string;
+  parent_center_code: string;
+  parent_center_name: string;
+  headcount: number;
+  avg_efficiency: number;
+  avg_work_hours: number;
+  overtime_ratio: number;
+  burnout_risk_level: string;
+}
+
 interface TrendRow {
   org_code: string;
   year_month: string;
   avg_efficiency: number;
 }
 
-function getBurnoutBorderColor(level: string): string {
-  if (level === "high") return "border-l-red-500";
-  if (level === "medium") return "border-l-amber-500";
-  return "border-l-emerald-500";
-}
-
-function getBurnoutBadgeClass(level: string): string {
-  if (level === "high") return "bg-red-100 text-red-700 border-red-200";
-  if (level === "medium") return "bg-amber-100 text-amber-700 border-amber-200";
-  return "bg-emerald-100 text-emerald-700 border-emerald-200";
-}
-
-function getBurnoutLabel(level: string): string {
-  if (level === "high") return "HIGH";
-  if (level === "medium") return "MEDIUM";
-  return "LOW";
-}
-
 export default function WorkforcePage() {
+  // ─── Team-level data (latest month) ────────────────────────────────────────
   const latestData = db
     .prepare(
       `SELECT w.org_code, o.org_name, w.year_month, w.headcount,
@@ -66,6 +69,118 @@ export default function WorkforcePage() {
     throw new Error("workforce_summary data not found for 2025-12");
   }
 
+  // ─── Center-level aggregation ──────────────────────────────────────────────
+  const centerRows = db
+    .prepare(
+      `SELECT org_code, org_name, headcount
+       FROM org_units
+       WHERE org_level = 'center'
+       ORDER BY display_order`
+    )
+    .all() as CenterRow[];
+
+  if (centerRows.length === 0) {
+    throw new Error("No center-level org_units found");
+  }
+
+  // Get teams with their parent center info
+  const teamsWithCenter = db
+    .prepare(
+      `SELECT
+         t.org_code,
+         t.org_name,
+         c.org_code AS parent_center_code,
+         c.org_name AS parent_center_name,
+         w.headcount,
+         w.avg_efficiency,
+         w.avg_work_hours,
+         w.overtime_ratio,
+         w.burnout_risk_level
+       FROM workforce_summary w
+       JOIN org_units t ON w.org_code = t.org_code
+       JOIN org_units d ON t.parent_org_code = d.org_code
+       JOIN org_units c ON d.parent_org_code = c.org_code
+       WHERE w.year_month = '2025-12'
+         AND t.org_level = 'team'
+       ORDER BY c.display_order, t.display_order`
+    )
+    .all() as TeamWithCenter[];
+
+  if (teamsWithCenter.length === 0) {
+    throw new Error("No team-level workforce data found for 2025-12");
+  }
+
+  // Aggregate center metrics from team data
+  const centers: CenterMetrics[] = centerRows.map((cr) => {
+    const centerTeams = teamsWithCenter.filter(
+      (t) => t.parent_center_code === cr.org_code
+    );
+    if (centerTeams.length === 0) {
+      throw new Error(
+        `No teams found for center ${cr.org_code} (${cr.org_name})`
+      );
+    }
+
+    const totalHC = centerTeams.reduce((s, t) => s + t.headcount, 0);
+    // Weighted average by headcount
+    const weightedEfficiency =
+      centerTeams.reduce((s, t) => s + t.avg_efficiency * t.headcount, 0) /
+      totalHC;
+    const weightedWorkHours =
+      centerTeams.reduce((s, t) => s + t.avg_work_hours * t.headcount, 0) /
+      totalHC;
+    const weightedOvertime =
+      centerTeams.reduce((s, t) => s + t.overtime_ratio * t.headcount, 0) /
+      totalHC;
+
+    return {
+      centerCode: cr.org_code,
+      centerName: cr.org_name,
+      headcount: totalHC,
+      avgEfficiency: Math.round(weightedEfficiency * 10) / 10,
+      avgWorkHours: Math.round(weightedWorkHours * 10) / 10,
+      overtimeRatio: Math.round(weightedOvertime * 10) / 10,
+    };
+  });
+
+  // Build team metrics array
+  const teams: TeamMetrics[] = teamsWithCenter.map((t) => ({
+    orgCode: t.org_code,
+    orgName: t.org_name,
+    parentCenterCode: t.parent_center_code,
+    parentCenterName: t.parent_center_name,
+    headcount: t.headcount,
+    avgEfficiency: t.avg_efficiency,
+    avgWorkHours: t.avg_work_hours,
+    overtimeRatio: t.overtime_ratio,
+    burnoutRiskLevel: t.burnout_risk_level,
+  }));
+
+  // Company totals (weighted)
+  const totalHC = teams.reduce((s, t) => s + t.headcount, 0);
+  const companyTotals: CompanyTotals = {
+    totalHeadcount: totalHC,
+    avgEfficiency:
+      Math.round(
+        (teams.reduce((s, t) => s + t.avgEfficiency * t.headcount, 0) /
+          totalHC) *
+          10
+      ) / 10,
+    avgWorkHours:
+      Math.round(
+        (teams.reduce((s, t) => s + t.avgWorkHours * t.headcount, 0) /
+          totalHC) *
+          10
+      ) / 10,
+    avgOvertimeRatio:
+      Math.round(
+        (teams.reduce((s, t) => s + t.overtimeRatio * t.headcount, 0) /
+          totalHC) *
+          10
+      ) / 10,
+  };
+
+  // ─── Trend data ────────────────────────────────────────────────────────────
   const trendRows = db
     .prepare(
       `SELECT w.org_code, w.year_month, w.avg_efficiency
@@ -80,24 +195,6 @@ export default function WorkforcePage() {
     throw new Error("workforce_summary trend data not found");
   }
 
-  // KPI calculations
-  const totalHeadcount = latestData.reduce((sum, r) => sum + r.headcount, 0);
-  const avgEfficiency =
-    Math.round(
-      (latestData.reduce((sum, r) => sum + r.avg_efficiency, 0) /
-        latestData.length) *
-        10
-    ) / 10;
-  const avgWorkHours =
-    Math.round(
-      (latestData.reduce((sum, r) => sum + r.avg_work_hours, 0) /
-        latestData.length) *
-        10
-    ) / 10;
-  const burnoutTeamCount = latestData.filter(
-    (r) => r.burnout_risk_level === "high"
-  ).length;
-
   // B-1-1 burnout data
   const b11Data = latestData.find((r) => r.org_code === "B-1-1");
   if (!b11Data) {
@@ -108,7 +205,9 @@ export default function WorkforcePage() {
   const months = [...new Set(trendRows.map((r) => r.year_month))].sort();
   const teamCodes = [...new Set(latestData.map((r) => r.org_code))];
   const trendData = months.map((month) => {
-    const point: { month: string; [teamCode: string]: string | number } = { month };
+    const point: { month: string; [teamCode: string]: string | number } = {
+      month,
+    };
     for (const code of teamCodes) {
       const row = trendRows.find(
         (r) => r.year_month === month && r.org_code === code
@@ -125,7 +224,10 @@ export default function WorkforcePage() {
       {/* Breadcrumb */}
       <div className="mb-8">
         <div className="flex items-center gap-1 text-sm text-neutral-500 mb-2">
-          <Link href="/pan-hr" className="hover:text-neutral-700 transition-colors">
+          <Link
+            href="/pan-hr"
+            className="hover:text-neutral-700 transition-colors"
+          >
             Pan HR
           </Link>
           <ChevronRight className="w-3 h-3" />
@@ -139,145 +241,24 @@ export default function WorkforcePage() {
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-gradient-to-br from-blue-50 to-white border-l-4 border-l-blue-500 hover:shadow-md transition-all">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-sm text-neutral-600">총 인원</span>
-            </div>
-            <p className="text-2xl font-bold text-neutral-900">
-              {totalHeadcount}
-              <span className="text-sm font-normal text-neutral-500 ml-1">명</span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-emerald-50 to-white border-l-4 border-l-emerald-500 hover:shadow-md transition-all">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Activity className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm text-neutral-600">평균 효율</span>
-            </div>
-            <p className="text-2xl font-bold text-neutral-900">
-              {avgEfficiency}
-              <span className="text-sm font-normal text-neutral-500 ml-1">%</span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-violet-50 to-white border-l-4 border-l-violet-500 hover:shadow-md transition-all">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-violet-600" />
-              <span className="text-sm text-neutral-600">평균 근무시간</span>
-            </div>
-            <p className="text-2xl font-bold text-neutral-900">
-              {avgWorkHours}
-              <span className="text-sm font-normal text-neutral-500 ml-1">h</span>
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-50 to-white border-l-4 border-l-red-500 hover:shadow-md transition-all">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Flame className="w-4 h-4 text-red-600" />
-              <span className="text-sm text-neutral-600">번아웃 위험 팀</span>
-            </div>
-            <p className="text-2xl font-bold text-red-600">
-              {burnoutTeamCount}
-              <span className="text-sm font-normal text-neutral-500 ml-1">팀</span>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* ═══ CENTER LEVEL GRID (Signature Feature) ═══ */}
+      <CenterLevelGrid
+        centers={centers}
+        teams={teams}
+        companyTotals={companyTotals}
+      />
 
       {/* Burnout Alert Banner */}
-      <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4 flex items-start gap-3">
+      <div className="mt-8 mb-6 rounded-lg bg-red-50 border border-red-200 p-4 flex items-start gap-3">
         <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
         <div>
           <p className="text-sm font-semibold text-red-800">
             B-1-1팀 번아웃 위험 HIGH
           </p>
           <p className="text-sm text-red-700 mt-0.5">
-            초과근무 {b11Data.overtime_ratio}% ▲, 효율{" "}
-            {b11Data.avg_efficiency}% ▼ -- 즉각적인 인력 보충 및 업무 재배분이
-            필요합니다.
+            초과근무 {b11Data.overtime_ratio}% ▲, 효율 {b11Data.avg_efficiency}%
+            ▼ -- 즉각적인 인력 보충 및 업무 재배분이 필요합니다.
           </p>
-        </div>
-      </div>
-
-      {/* Team Grid */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-neutral-900 mb-4">
-          팀별 현황 (2025-12)
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {latestData.map((team) => (
-            <Card
-              key={team.org_code}
-              className={`border-l-4 ${getBurnoutBorderColor(team.burnout_risk_level)} hover:shadow-md transition-all ${
-                team.org_code === "B-1-1"
-                  ? "bg-gradient-to-br from-red-50 to-white ring-1 ring-red-200"
-                  : "bg-white"
-              }`}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">
-                    {team.org_name}
-                  </CardTitle>
-                  <Badge
-                    className={`text-xs ${getBurnoutBadgeClass(team.burnout_risk_level)}`}
-                  >
-                    {getBurnoutLabel(team.burnout_risk_level)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">인원</span>
-                    <span className="font-medium">{team.headcount}명</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">효율</span>
-                    <span
-                      className={`font-medium ${
-                        team.avg_efficiency < 70
-                          ? "text-red-600"
-                          : team.avg_efficiency < 80
-                            ? "text-amber-600"
-                            : "text-emerald-600"
-                      }`}
-                    >
-                      {team.avg_efficiency}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">근무시간</span>
-                    <span className="font-medium">{team.avg_work_hours}h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">초과근무</span>
-                    <span
-                      className={`font-medium ${
-                        team.overtime_ratio > 30
-                          ? "text-red-600"
-                          : team.overtime_ratio > 15
-                            ? "text-amber-600"
-                            : "text-emerald-600"
-                      }`}
-                    >
-                      {team.overtime_ratio}%
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
         </div>
       </div>
 

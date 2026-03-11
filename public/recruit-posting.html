@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>채용공고 생성 대시보드 - 디자인</title>
+<style>
+  :root {
+    --primary: #002c5f;
+    --accent: #00aad2;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #1a202c;
+    --text-sub: #64748b;
+    --sidebar-w: 220px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  /* ── 헤더 ─────────────────────── */
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, #003d7a 100%);
+    color: #fff;
+    padding: 32px 0;
+    text-align: center;
+  }
+  .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .header .meta {
+    display: flex; justify-content: center; gap: 28px;
+    margin-top: 12px; font-size: 14px; opacity: 0.9;
+  }
+  .header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* ── 레이아웃 ────────────────── */
+  .layout {
+    display: flex; max-width: 1200px; margin: 0 auto; padding: 24px 20px; gap: 24px;
+  }
+
+  /* ── 사이드바 ────────────────── */
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0;
+    position: sticky; top: 24px; align-self: flex-start;
+  }
+  .sidebar-label {
+    font-size: 11px; font-weight: 700; color: var(--text-sub);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 12px; padding-left: 4px;
+  }
+  .team-btn {
+    display: block; width: 100%; text-align: left;
+    padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px;
+    background: var(--card); cursor: pointer; transition: all 0.2s;
+    margin-bottom: 8px;
+  }
+  .team-btn:hover { border-color: var(--accent); }
+  .team-btn.active {
+    border-color: var(--primary); background: var(--primary); color: #fff;
+  }
+  .team-btn.active .team-btn-meta { color: rgba(255,255,255,0.7); }
+  .team-btn.active .sidebar-count { opacity: 0.9; }
+  .team-btn-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .team-btn.active .team-btn-name { color: #fff; }
+  .team-btn-meta { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+  .team-btn-counts { display: flex; gap: 4px; margin-top: 6px; }
+  .sidebar-count {
+    display: inline-block; padding: 1px 7px; border-radius: 8px;
+    font-size: 10px; font-weight: 700; color: #fff;
+  }
+  .sidebar-count.hire { background: #dc3545; }
+  .sidebar-count.train { background: #fd7e14; }
+  .sidebar-count.self { background: #28a745; }
+  .sidebar-legend {
+    margin-top: 16px; padding: 10px 12px;
+    background: var(--card); border-radius: 8px; border: 1px solid var(--border);
+    font-size: 10px; color: var(--text-sub); line-height: 1.8;
+  }
+  .sidebar-legend span { font-weight: 700; }
+
+  /* ── 메인 콘텐츠 ─────────────── */
+  .main-content { flex: 1; min-width: 0; }
+
+  /* ── 섹션 ───────────────────────── */
+  .section { margin-bottom: 36px; }
+  .section-header {
+    font-size: 18px; font-weight: 700; color: var(--primary);
+    border-bottom: 3px solid var(--accent); padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+
+  /* ── 테이블 ──────────────────────── */
+  table {
+    width: 100%; border-collapse: collapse; background: var(--card);
+    border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    font-size: 13px;
+  }
+  th {
+    background: var(--primary); color: #fff; padding: 10px 12px;
+    font-size: 12px; font-weight: 600; text-align: left;
+    white-space: nowrap;
+  }
+  td {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+  td.center { text-align: center; }
+  td.desc { color: var(--text-sub); font-size: 12px; max-width: 280px; }
+  .type-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    color: #fff; font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+
+  /* Gap 셀 색상 */
+  .gap-critical { color: #dc3545; font-weight: 700; }
+  .gap-warning { color: #fd7e14; font-weight: 600; }
+  .gap-ok { color: #28a745; }
+  .judgment-hire { color: #dc3545; font-weight: 600; }
+  .judgment-train { color: #fd7e14; }
+
+  /* ── 탭 네비게이션 ────────────── */
+  .tab-nav {
+    display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 10px 20px; border: 2px solid var(--border); border-radius: 8px;
+    background: var(--card); cursor: pointer; font-size: 14px; font-weight: 600;
+    color: var(--text-sub); transition: all 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tab-btn:hover { border-color: var(--accent); color: var(--primary); }
+  .tab-btn.active {
+    border-color: var(--accent); background: var(--accent); color: #fff;
+  }
+  .tab-btn.active .tab-level { background: rgba(255,255,255,0.3); color: #fff; }
+  .tab-level {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: #e2e8f0; color: var(--text-sub);
+  }
+
+  /* ── 채용공고 카드 ────────────── */
+  .posting-card {
+    background: var(--card); border-radius: 12px; padding: 36px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .strategic-info {
+    background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 20px; font-size: 13px;
+  }
+  .skill-chip {
+    display: inline-block; background: var(--primary); color: #fff;
+    padding: 2px 10px; border-radius: 12px; font-size: 11px;
+    font-weight: 600; margin: 2px;
+  }
+  .slogan {
+    font-size: 13px; color: var(--accent); font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .position-title {
+    font-size: 22px; font-weight: 800; color: var(--primary);
+    margin-bottom: 28px; line-height: 1.3;
+  }
+  .func-tag {
+    display: inline-block; background: var(--accent); color: #fff;
+    padding: 3px 12px; border-radius: 4px; font-size: 13px;
+    font-weight: 600; margin-right: 8px; vertical-align: middle;
+  }
+  .posting-card .section-title {
+    font-size: 16px; font-weight: 700; color: var(--primary);
+    margin-top: 28px; margin-bottom: 12px;
+    padding-bottom: 6px; border-bottom: 2px solid #e2e8f0;
+  }
+  .sub-section {
+    font-size: 14px; font-weight: 700; color: #334155;
+    margin-top: 16px; margin-bottom: 8px; padding-left: 4px;
+  }
+  .sub-section::before {
+    content: "\25A0"; color: var(--accent); margin-right: 8px;
+  }
+  .sub-header {
+    font-size: 14px; font-weight: 600; color: #475569;
+    margin-top: 16px; margin-bottom: 8px;
+  }
+  .bullet-item {
+    padding: 4px 0 4px 20px; font-size: 14px;
+    position: relative; color: #334155;
+  }
+  .bullet-item::before {
+    content: "\00B7"; position: absolute; left: 6px;
+    font-weight: 700; color: var(--accent);
+  }
+  .bullet-item.indent { padding-left: 36px; }
+  .bullet-item.indent::before { left: 22px; }
+  .bullet-item.indent2 {
+    padding-left: 52px; font-size: 13px; color: var(--text-sub);
+  }
+  .bullet-item.indent2::before { content: "-"; left: 40px; color: #94a3b8; }
+  .text-body { font-size: 14px; color: #334155; margin: 8px 0; line-height: 1.8; }
+  .step-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 0; font-size: 14px;
+  }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+  }
+
+  /* ── 푸터 ─────────────────────── */
+  .footer {
+    text-align: center; padding: 24px; color: var(--text-sub);
+    font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px;
+  }
+
+  /* ── 인쇄 ─────────────────────── */
+  @media print {
+    .header { padding: 20px 0; }
+    .sidebar { display: none; }
+    .layout { display: block; }
+    .posting-card { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
+    .tab-nav { display: none; }
+    .posting-card { display: block !important; margin-bottom: 24px; }
+  }
+
+  /* ── 반응형 ─────────────────────── */
+  @media (max-width: 768px) {
+    .layout { flex-direction: column; }
+    .sidebar { width: 100%; position: static; display: flex; gap: 8px; flex-wrap: wrap; }
+    .sidebar-label { display: none; }
+    .sidebar-legend { display: none; }
+    .team-btn { width: auto; flex: 1; min-width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>채용공고 생성 대시보드</h1>
+  <div class="meta">
+    <span>포지션 3건</span>
+    <span>RQMT 31건</span>
+    <span>공고 3건</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- 좌측 사이드바: 팀 필터 -->
+  <aside class="sidebar">
+    <div class="sidebar-label">팀 선택</div>
+    <button class="team-btn active" onclick="filterTeam('all', this)">
+      <div class="team-btn-name">전체 보기</div>
+      <div class="team-btn-meta">모든 팀</div>
+    </button>
+    
+            <button class="team-btn" onclick="filterTeam('PBV팀', this)">
+              <div class="team-btn-name">PBV팀</div>
+              <div class="team-btn-meta">Lv4 관리자</div>
+              <div class="team-btn-counts"><span class="sidebar-count hire">5</span><span class="sidebar-count train">6</span></div>
+            </button>
+            <button class="team-btn" onclick="filterTeam('양산팀', this)">
+              <div class="team-btn-name">양산팀</div>
+              <div class="team-btn-meta">Lv3 선임</div>
+              <div class="team-btn-counts"><span class="sidebar-count train">4</span><span class="sidebar-count self">7</span></div>
+            </button>
+            <button class="team-btn" onclick="filterTeam('프론트로딩팀', this)">
+              <div class="team-btn-name">프론트로딩팀</div>
+              <div class="team-btn-meta">Lv2 실무자</div>
+              <div class="team-btn-counts"><span class="sidebar-count hire">2</span><span class="sidebar-count train">3</span><span class="sidebar-count self">4</span></div>
+            </button>
+    <div class="sidebar-legend">
+      <span style="color:#dc3545">■</span> 전략적 채용 &nbsp;
+      <span style="color:#fd7e14">■</span> 역량 강화 &nbsp;
+      <span style="color:#28a745">■</span> 자기개발
+    </div>
+  </aside>
+
+  <!-- 우측 메인 콘텐츠 -->
+  <div class="main-content">
+
+    <!-- RQMT 현황 -->
+    <div class="section" id="section-rqmt">
+      <div class="section-header">RQMT 현황 (총 31건)</div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>스킬명</th><th>레벨</th><th>팀</th>
+            <th>Gap</th><th>유형</th><th>우선순위</th><th>요구 행동 기술</th>
+          </tr>
+        </thead>
+        <tbody>
+            <tr data-team="PBV팀">
+                <td class="center">1</td>
+                <td><strong>PBV 특화 디자인</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+2.7</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">85.5</td>
+                <td class="desc">PBV 포트폴리오 전략 총괄 · 베이스카/컨버전스 디자인 방향 결정 · 신사업 방향 정의</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">2</td>
+                <td><strong>아웃소싱 관리</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+2.4</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">81.5</td>
+                <td class="desc">아웃소싱 전략 수립·계약 협상 총괄 · 협력사 선정·평가 체계 운영 · 전략적 파트너십 구축</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">3</td>
+                <td><strong>Blender 모델링</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+2.1</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">77.5</td>
+                <td class="desc">3D 디지털 전략·워크플로우 표준 수립 · 팀 역량 개발 방향 결정 · 협력사 품질 기준 제시</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">4</td>
+                <td><strong>프레젠테이션/보고</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+2.0</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">76.2</td>
+                <td class="desc">이해관계자 전략 발표·설득 총괄 · C-레벨 보고·의사결정 지원 · 외부 브랜드 포럼 대표 발표</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">5</td>
+                <td><strong>양산 프로젝트 관리</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+1.9</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">74.8</td>
+                <td class="desc">담당 파트 일정·이슈 독립 관리 · 타 부서 협업 연락 주도</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">6</td>
+                <td><strong>Alias Surface 모델링</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+1.7</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">72.2</td>
+                <td class="desc">서페이스 기준·평가 체계 수립 · 팀·협력사 모델링 품질 총괄 · 표준 문서화·교육</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">7</td>
+                <td><strong>Blender 모델링</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+1.5</td>
+                <td><span class="type-badge" style="background:#dc3545">
+                    전략적 채용</span></td>
+                <td class="center">69.5</td>
+                <td class="desc">디자인 검증용 3D 목업 독립 제작 · 재질·조명 설정 독립 수행</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">8</td>
+                <td><strong>디자인 컨셉 개발</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+1.3</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">63.8</td>
+                <td class="desc">차종별 컨셉 조율 총괄 · Kick Off~Sign Off 전 주기 디자인 방향 일관성 유지</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">9</td>
+                <td><strong>Alias Surface 모델링</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+1.2</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">62.5</td>
+                <td class="desc">A급 서페이스 독립 구현 · 곡면 연속성(G2·G3) 자체 검토·수정</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">10</td>
+                <td><strong>VRED 시각화/리뷰</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+1.2</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">62.5</td>
+                <td class="desc">3D 시각화 표준·운영 기준 수립 · 팀·협력사 시각화 품질 관리 의사결정</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">11</td>
+                <td><strong>프레젠테이션/보고</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+1.2</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">62.5</td>
+                <td class="desc">디자인 리뷰·팀 검토 회의 독립 발표 · 질의 응답 대응 · 피드백 반영</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">12</td>
+                <td><strong>Blender 모델링</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+1.1</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">61.2</td>
+                <td class="desc">복수 컨셉 모델 품질 총괄 · 팀 Blender 워크플로우 조율 · 양산 연계 검토 주도</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">13</td>
+                <td><strong>프레젠테이션/보고</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+1.0</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">59.8</td>
+                <td class="desc">경영진 디자인 보고·승인 주도 · 협력사·타 부문 발표 · 외부 파트너 커뮤니케이션</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">14</td>
+                <td><strong>디자인 트렌드 분석</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+0.9</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">58.5</td>
+                <td class="desc">2~3년 선제 트렌드 포착·내부 공유 · 회사 디자인 비전 방향 의사결정 지원</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">15</td>
+                <td><strong>디자인 컨셉 개발</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+0.9</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">58.5</td>
+                <td class="desc">브랜드 정체성 연계 컨셉 전략 수립 · 경영진 컨셉 승인 주도 · 글로벌 방향 결정</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">16</td>
+                <td><strong>벤치마킹/경쟁 분석</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+0.9</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">58.5</td>
+                <td class="desc">경쟁 전략 방향 결정 · 경영진 의사결정 지원용 분석 보고·승인 주도</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">17</td>
+                <td><strong>양산 프로젝트 관리</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+0.8</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">57.2</td>
+                <td class="desc">다차종 통합 관리·리소스 조율 · 경영진 보고 수준 일정 리스크 의사결정</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">18</td>
+                <td><strong>아웃소싱 관리</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+0.8</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">57.2</td>
+                <td class="desc">협력사 발주·검수 독립 수행 · 납기 일정 관리 · 1차 품질 검토</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">19</td>
+                <td><strong>양산 적용성 검토</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.8</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">57.2</td>
+                <td class="desc">디자인-엔지니어링 양산 연계 품질 리뷰 조율 · 설계 변경 협의 주도 · 생산팀 협업</td>
+            </tr>
+            <tr data-team="PBV팀">
+                <td class="center">20</td>
+                <td><strong>양산 적용성 검토</strong></td>
+                <td class="center">Lv4</td>
+                <td>PBV팀</td>
+                <td class="center">+0.8</td>
+                <td><span class="type-badge" style="background:#fd7e14">
+                    역량 강화</span></td>
+                <td class="center">57.2</td>
+                <td class="desc">양산 적용 기준 수립·의사결정 주도 · 신규 공법 도입 승인 · 사업부 간 전략 조율</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">21</td>
+                <td><strong>디자인 컨셉 개발</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+0.6</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">48.5</td>
+                <td class="desc">타이폴로지 연구 기반 외장 아이덴티티 컨셉 독립 개발 · 팀 내 발표·피드백 반영</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">22</td>
+                <td><strong>VRED 시각화/리뷰</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+0.5</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">47.2</td>
+                <td class="desc">재질·조명 설정 후 렌더링 독립 수행 · 디자인 리뷰용 시각화 자료 제작</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">23</td>
+                <td><strong>VRED 시각화/리뷰</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.5</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">47.2</td>
+                <td class="desc">팀 VRED 워크플로우 조율 · 디자인 의사결정용 고품질 시각화 기준 관리</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">24</td>
+                <td><strong>디자인 트렌드 분석</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">중장기 트렌드 지도 작성 · 타 직무(마케팅·R&amp;D) 연계 전략 인사이트 제공</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">25</td>
+                <td><strong>벤치마킹/경쟁 분석</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">전략적 포지셔닝 도출 · 타 직무와 벤치마킹 결과 연계·적용 방향 조율</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">26</td>
+                <td><strong>Alias Surface 모델링</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">양산 적용 서페이스 품질 총괄 · 팀원 모델 리뷰·피드백 · Kick Off 기준 서페이스 승인</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">27</td>
+                <td><strong>양산 프로젝트 관리</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">Kick Off~Sign Off 전 주기 디자인 일정 단독 관리 · 엔지니어링·생산 협업 조율</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">28</td>
+                <td><strong>아웃소싱 관리</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">복수 협력사 품질·일정 조율 · 이슈 발생 시 협력사 협의 주도 · 내부 승인 보고</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">29</td>
+                <td><strong>PBV 특화 디자인</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">PBV 베이스카 외장 개념 디자인 독립 수행 · 컨버전스 아이디어 제안</td>
+            </tr>
+            <tr data-team="양산팀">
+                <td class="center">30</td>
+                <td><strong>PBV 특화 디자인</strong></td>
+                <td class="center">Lv3</td>
+                <td>양산팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">PBV 베이스카·컨버전스 디자인 방향 조율 · 협력사 디자인 검토·피드백 주도</td>
+            </tr>
+            <tr data-team="프론트로딩팀">
+                <td class="center">31</td>
+                <td><strong>양산 적용성 검토</strong></td>
+                <td class="center">Lv2</td>
+                <td>프론트로딩팀</td>
+                <td class="center">+0.4</td>
+                <td><span class="type-badge" style="background:#28a745">
+                    자기개발</span></td>
+                <td class="center">45.8</td>
+                <td class="desc">디자인 의도의 양산 가능성 독립 검토 · 공차·재질 이슈 1차 파악·보고</td>
+            </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Gap 분석 (있을 경우) -->
+    <div class="section">
+    <div class="section-header">Gap 분석 현황</div>
+    <table>
+      <thead>
+        <tr>
+          <th>스킬명</th><th>프론트로딩팀</th><th>양산팀</th><th>PBV팀</th><th>최대 Gap</th>
+          <th>최대 Gap</th><th>종합 판단</th>
+        </tr>
+      </thead>
+      <tbody>
+                <tr>
+                    <td><strong>디자인 트렌드 분석</strong></td>
+                    <td class="center gap-ok">-0.4  충족</td><td class="center ">+0.4  경미</td><td class="center ">+0.9  경미</td><td class="center ">+0.9  (PBV팀)</td>
+                    <td class="center">+0.9  (PBV팀)</td>
+                    <td class="">소폭 부족 → 자기개발 권장</td>
+                </tr>
+                <tr>
+                    <td><strong>디자인 컨셉 개발</strong></td>
+                    <td class="center ">+0.6  경미</td><td class="center gap-warning">+1.3  주의</td><td class="center ">+0.9  경미</td><td class="center ">+1.3  (양산팀)</td>
+                    <td class="center">+1.3  (양산팀)</td>
+                    <td class="judgment-train">상당 부족 → 역량 강화 교육 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>벤치마킹/경쟁 분석</strong></td>
+                    <td class="center gap-ok">-0.1  충족</td><td class="center ">+0.4  경미</td><td class="center ">+0.9  경미</td><td class="center ">+0.9  (PBV팀)</td>
+                    <td class="center">+0.9  (PBV팀)</td>
+                    <td class="">소폭 부족 → 자기개발 권장</td>
+                </tr>
+                <tr>
+                    <td><strong>Alias Surface 모델링</strong></td>
+                    <td class="center gap-warning">+1.2  주의</td><td class="center ">+0.4  경미</td><td class="center gap-critical">+1.7  부족</td><td class="center ">+1.7  (PBV팀)</td>
+                    <td class="center">+1.7  (PBV팀)</td>
+                    <td class="judgment-hire">심각한 Gap → 경력직 채용 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>VRED 시각화/리뷰</strong></td>
+                    <td class="center ">+0.5  경미</td><td class="center ">+0.5  경미</td><td class="center gap-warning">+1.2  주의</td><td class="center ">+1.2  (PBV팀)</td>
+                    <td class="center">+1.2  (PBV팀)</td>
+                    <td class="judgment-train">상당 부족 → 역량 강화 교육 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>Blender 모델링</strong></td>
+                    <td class="center gap-critical">+1.5  부족</td><td class="center gap-warning">+1.1  주의</td><td class="center gap-critical">+2.1  부족</td><td class="center ">+2.1  (PBV팀)</td>
+                    <td class="center">+2.1  (PBV팀)</td>
+                    <td class="judgment-hire">심각한 Gap → 경력직 채용 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>양산 프로젝트 관리</strong></td>
+                    <td class="center gap-critical">+1.9  부족</td><td class="center ">+0.4  경미</td><td class="center ">+0.8  경미</td><td class="center ">+1.9  (프론트로딩팀)</td>
+                    <td class="center">+1.9  (프론트로딩팀)</td>
+                    <td class="judgment-hire">심각한 Gap → 경력직 채용 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>아웃소싱 관리</strong></td>
+                    <td class="center ">+0.8  경미</td><td class="center ">+0.4  경미</td><td class="center gap-critical">+2.4  부족</td><td class="center ">+2.4  (PBV팀)</td>
+                    <td class="center">+2.4  (PBV팀)</td>
+                    <td class="judgment-hire">심각한 Gap → 경력직 채용 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>PBV 특화 디자인</strong></td>
+                    <td class="center ">+0.4  경미</td><td class="center ">+0.4  경미</td><td class="center gap-critical">+2.7  부족</td><td class="center ">+2.7  (PBV팀)</td>
+                    <td class="center">+2.7  (PBV팀)</td>
+                    <td class="judgment-hire">심각한 Gap → 경력직 채용 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>프레젠테이션/보고</strong></td>
+                    <td class="center gap-warning">+1.2  주의</td><td class="center gap-warning">+1.0  주의</td><td class="center gap-critical">+2.0  부족</td><td class="center ">+2.0  (PBV팀)</td>
+                    <td class="center">+2.0  (PBV팀)</td>
+                    <td class="judgment-hire">심각한 Gap → 경력직 채용 필요</td>
+                </tr>
+                <tr>
+                    <td><strong>양산 적용성 검토</strong></td>
+                    <td class="center ">+0.4  경미</td><td class="center ">+0.8  경미</td><td class="center ">+0.8  경미</td><td class="center ">+0.8  (양산팀)</td>
+                    <td class="center">+0.8  (양산팀)</td>
+                    <td class="">소폭 부족 → 자기개발 권장</td>
+                </tr>
+      </tbody>
+    </table>
+  </div>
+
+    <!-- 채용공고 -->
+    <div class="section" id="section-posting">
+      <div class="section-header">생성된 채용공고</div>
+      <div class="tab-nav">
+            <button class="tab-btn active" data-team="프론트로딩팀" onclick="showTab('posting-0', this)">
+                프로젝트 프론트로딩
+                <span class="tab-level">Lv2 실무자</span>
+            </button>
+            <button class="tab-btn " data-team="양산팀" onclick="showTab('posting-1', this)">
+                양산 프로젝트 수행
+                <span class="tab-level">Lv3 선임</span>
+            </button>
+            <button class="tab-btn " data-team="PBV팀" onclick="showTab('posting-2', this)">
+                PBV 외장디자인
+                <span class="tab-level">Lv4 관리자</span>
+            </button>
+      </div>
+      
+            <div id="posting-0" class="posting-card" data-team="프론트로딩팀" style="display:block">
+                <div class="strategic-info">전략채용 스킬: <span class="skill-chip">양산 프로젝트 관리</span> <span class="skill-chip">Blender 모델링</span></div>
+                <p class="slogan">Come Grow with Us</p>
+<h2 class="position-title"><span class="func-tag">디자인</span> 프로젝트 프론트로딩</h2>
+<h3 class="section-title">조직소개</h3>
+<p class="text-body">우리 조직은 양산 프로젝트 관리, Blender 모델링 등 핵심 역량을 기반으로 고객 가치를 창출하는 디자인 전문 조직입니다. 현재 프론트로딩팀 내 역량 고도화를 위해 함께 성장할 인재를 찾고 있습니다.</p>
+<h3 class="section-title">직무상세</h3>
+<p class="text-body">담당 파트 일정, 디자인 검증용 3D 목업 독립 제작 등의 업무를 담당하며, 관련 부서와의 협업을 통해 업무 성과를 창출합니다.</p>
+<h4 class="sub-section">핵심 담당업무</h4>
+<div class="bullet-item indent">담당 파트 일정</div>
+<div class="bullet-item indent2">이슈 독립 관리</div>
+<div class="bullet-item indent2">타 부서 협업 연락 주도</div>
+<div class="bullet-item indent">디자인 검증용 3D 목업 독립 제작</div>
+<div class="bullet-item indent2">재질</div>
+<div class="bullet-item indent2">조명 설정 독립 수행</div>
+<h3 class="section-title">지원자격</h3>
+<div class="bullet-item ">디자인 관련 분야에서 학사 이상의 학위를 보유하신 분</div>
+<div class="bullet-item ">3~5년의 관련 분야 업무 경험을 보유하신 분</div>
+<div class="bullet-item ">양산 프로젝트 관리 역량을 보유하신 분</div>
+<div class="bullet-item ">Blender 모델링 역량을 보유하신 분</div>
+<h3 class="section-title">우대사항</h3>
+<div class="bullet-item ">Alias Surface 모델링 경험을 보유하신 분</div>
+<div class="bullet-item ">프레젠테이션/보고 경험을 보유하신 분</div>
+<div class="bullet-item ">아웃소싱 관리 경험을 보유하신 분</div>
+<h3 class="section-title">전형단계</h3>
+<div class="step-item"><span class="step-num">1</span><span>지원서 접수</span></div>
+<div class="step-item"><span class="step-num">2</span><span>서류전형</span></div>
+<div class="step-item"><span class="step-num">3</span><span>면접전형 (인성검사)</span></div>
+<div class="step-item"><span class="step-num">4</span><span>채용검진</span></div>
+<div class="step-item"><span class="step-num">5</span><span>최종합격</span></div>
+<h3 class="section-title">기타</h3>
+<h4 class="sub-header">지원자 참고사항</h4>
+<div class="bullet-item ">취업보호대상자(장애,보훈 등)는 관계 법령에 의거하여 우대합니다.</div>
+<div class="bullet-item ">채용공고 내 직급은 변동 가능성이 있으며, 개인별 경력 및 평가를 고려하여 처우협의 과정을 통하여 최종 확정됩니다.</div>
+<div class="bullet-item ">필요 시 전형단계에서 과제가 진행 될 수 있습니다.</div>
+<div class="bullet-item ">채용 전형 진행에 따라 일정이 조정될 수 있습니다.</div>
+            </div>
+            <div id="posting-1" class="posting-card" data-team="양산팀" style="display:none">
+                
+                <p class="slogan">Come Grow with Us</p>
+<h2 class="position-title"><span class="func-tag">디자인</span> 양산 프로젝트 수행</h2>
+<h3 class="section-title">조직소개</h3>
+<p class="text-body">우리 조직은 핵심 기술 등 핵심 역량을 기반으로 고객 가치를 창출하는 디자인 전문 조직입니다. 현재 양산팀 내 역량 고도화를 위해 함께 성장할 인재를 찾고 있습니다.</p>
+<h3 class="section-title">직무상세</h3>
+<p class="text-body">차종별 컨셉 조율 총괄, 복수 컨셉 모델 품질 총괄 등의 업무를 담당하며, 관련 부서와의 협업을 통해 업무 성과를 창출합니다.</p>
+<h4 class="sub-section">핵심 담당업무</h4>
+<div class="bullet-item indent">차종별 컨셉 조율 총괄</div>
+<div class="bullet-item indent2">Kick Off~Sign Off 전 주기 디자인 방향 일관성 유지</div>
+<div class="bullet-item indent">복수 컨셉 모델 품질 총괄</div>
+<div class="bullet-item indent2">팀 Blender 워크플로우 조율</div>
+<div class="bullet-item indent2">양산 연계 검토 주도</div>
+<div class="bullet-item indent">경영진 디자인 보고</div>
+<div class="bullet-item indent2">승인 주도</div>
+<div class="bullet-item indent2">협력사</div>
+<div class="bullet-item indent2">타 부문 발표</div>
+<div class="bullet-item indent2">외부 파트너 커뮤니케이션</div>
+<h4 class="sub-section">부가 업무 및 협업</h4>
+<div class="bullet-item indent">디자인-엔지니어링 양산 연계 품질 리뷰 조율</div>
+<div class="bullet-item indent2">설계 변경 협의 주도</div>
+<div class="bullet-item indent2">생산팀 협업</div>
+<h3 class="section-title">지원자격</h3>
+<div class="bullet-item ">디자인 관련 분야에서 학사 이상 (석사 우대)의 학위를 보유하신 분</div>
+<div class="bullet-item ">6~9년의 관련 분야 업무 경험을 보유하신 분</div>
+<div class="bullet-item ">디자인 컨셉 개발 역량을 보유하신 분</div>
+<div class="bullet-item ">Blender 모델링 역량을 보유하신 분</div>
+<div class="bullet-item ">프레젠테이션/보고 역량을 보유하신 분</div>
+<h3 class="section-title">우대사항</h3>
+<div class="bullet-item ">양산 적용성 검토 경험을 보유하신 분</div>
+<div class="bullet-item ">디지털 모델링 프로세스 실무 경험을 보유하신 분</div>
+<div class="bullet-item ">양산 프로젝트 관리 실무 경험을 보유하신 분</div>
+<div class="bullet-item ">디지털 스케치/렌더링 실무 경험을 보유하신 분</div>
+<h3 class="section-title">전형단계</h3>
+<div class="step-item"><span class="step-num">1</span><span>지원서 접수</span></div>
+<div class="step-item"><span class="step-num">2</span><span>서류전형</span></div>
+<div class="step-item"><span class="step-num">3</span><span>면접전형 (인성검사)</span></div>
+<div class="step-item"><span class="step-num">4</span><span>채용검진</span></div>
+<div class="step-item"><span class="step-num">5</span><span>최종합격</span></div>
+<h3 class="section-title">기타</h3>
+<h4 class="sub-header">지원자 참고사항</h4>
+<div class="bullet-item ">취업보호대상자(장애,보훈 등)는 관계 법령에 의거하여 우대합니다.</div>
+<div class="bullet-item ">채용공고 내 직급은 변동 가능성이 있으며, 개인별 경력 및 평가를 고려하여 처우협의 과정을 통하여 최종 확정됩니다.</div>
+<div class="bullet-item ">필요 시 전형단계에서 과제가 진행 될 수 있습니다.</div>
+<div class="bullet-item ">채용 전형 진행에 따라 일정이 조정될 수 있습니다.</div>
+            </div>
+            <div id="posting-2" class="posting-card" data-team="PBV팀" style="display:none">
+                <div class="strategic-info">전략채용 스킬: <span class="skill-chip">PBV 특화 디자인</span> <span class="skill-chip">아웃소싱 관리</span> <span class="skill-chip">Blender 모델링</span> <span class="skill-chip">프레젠테이션/보고</span> <span class="skill-chip">Alias Surface 모델링</span></div>
+                <p class="slogan">Come Grow with Us</p>
+<h2 class="position-title"><span class="func-tag">디자인</span> PBV 외장디자인</h2>
+<h3 class="section-title">조직소개</h3>
+<p class="text-body">우리 조직은 PBV 특화 디자인, 아웃소싱 관리, Blender 모델링 등 핵심 역량을 기반으로 고객 가치를 창출하는 디자인 전문 조직입니다. 현재 PBV팀 내 역량 고도화를 위해 함께 성장할 인재를 찾고 있습니다.</p>
+<h3 class="section-title">직무상세</h3>
+<p class="text-body">PBV 포트폴리오 전략 총괄, 아웃소싱 전략 수립 등의 업무를 담당하며, 관련 부서와의 협업을 통해 업무 성과를 창출합니다.</p>
+<h4 class="sub-section">핵심 담당업무</h4>
+<div class="bullet-item indent">PBV 포트폴리오 전략 총괄</div>
+<div class="bullet-item indent2">베이스카/컨버전스 디자인 방향 결정</div>
+<div class="bullet-item indent2">신사업 방향 정의</div>
+<div class="bullet-item indent">아웃소싱 전략 수립</div>
+<div class="bullet-item indent2">계약 협상 총괄</div>
+<div class="bullet-item indent2">협력사 선정</div>
+<div class="bullet-item indent2">평가 체계 운영</div>
+<div class="bullet-item indent2">전략적 파트너십 구축</div>
+<div class="bullet-item indent">3D 디지털 전략</div>
+<div class="bullet-item indent2">워크플로우 표준 수립</div>
+<div class="bullet-item indent2">팀 역량 개발 방향 결정</div>
+<div class="bullet-item indent2">협력사 품질 기준 제시</div>
+<h4 class="sub-section">부가 업무 및 협업</h4>
+<div class="bullet-item indent">이해관계자 전략 발표</div>
+<div class="bullet-item indent2">설득 총괄</div>
+<div class="bullet-item indent2">C-레벨 보고</div>
+<div class="bullet-item indent2">의사결정 지원</div>
+<div class="bullet-item indent2">외부 브랜드 포럼 대표 발표</div>
+<div class="bullet-item indent">서페이스 기준</div>
+<div class="bullet-item indent2">평가 체계 수립</div>
+<div class="bullet-item indent2">팀</div>
+<div class="bullet-item indent2">협력사 모델링 품질 총괄</div>
+<div class="bullet-item indent2">표준 문서화</div>
+<div class="bullet-item indent2">교육</div>
+<h3 class="section-title">지원자격</h3>
+<div class="bullet-item ">디자인 관련 분야에서 학사 이상 (석사 우대)의 학위를 보유하신 분</div>
+<div class="bullet-item ">10년+의 관련 분야 업무 경험을 보유하신 분</div>
+<div class="bullet-item ">PBV 특화 디자인 역량을 보유하신 분</div>
+<div class="bullet-item ">아웃소싱 관리 역량을 보유하신 분</div>
+<div class="bullet-item ">Blender 모델링 역량을 보유하신 분</div>
+<div class="bullet-item ">프레젠테이션/보고 역량을 보유하신 분</div>
+<div class="bullet-item ">Alias Surface 모델링 역량을 보유하신 분</div>
+<h3 class="section-title">우대사항</h3>
+<div class="bullet-item ">VRED 시각화/리뷰 경험을 보유하신 분</div>
+<div class="bullet-item ">디자인 트렌드 분석 경험을 보유하신 분</div>
+<div class="bullet-item ">디자인 컨셉 개발 경험을 보유하신 분</div>
+<div class="bullet-item ">벤치마킹/경쟁 분석 경험을 보유하신 분</div>
+<h3 class="section-title">전형단계</h3>
+<div class="step-item"><span class="step-num">1</span><span>지원서 접수</span></div>
+<div class="step-item"><span class="step-num">2</span><span>서류전형</span></div>
+<div class="step-item"><span class="step-num">3</span><span>면접전형 (인성검사)</span></div>
+<div class="step-item"><span class="step-num">4</span><span>채용검진</span></div>
+<div class="step-item"><span class="step-num">5</span><span>최종합격</span></div>
+<h3 class="section-title">기타</h3>
+<h4 class="sub-header">지원자 참고사항</h4>
+<div class="bullet-item ">취업보호대상자(장애,보훈 등)는 관계 법령에 의거하여 우대합니다.</div>
+<div class="bullet-item ">채용공고 내 직급은 변동 가능성이 있으며, 개인별 경력 및 평가를 고려하여 처우협의 과정을 통하여 최종 확정됩니다.</div>
+<div class="bullet-item ">필요 시 전형단계에서 과제가 진행 될 수 있습니다.</div>
+<div class="bullet-item ">채용 전형 진행에 따라 일정이 조정될 수 있습니다.</div>
+            </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  채용공고 생성 대시보드 &nbsp;|&nbsp; 
+</div>
+
+<script>
+function showTab(tabId, btn) {
+  document.querySelectorAll('.posting-card').forEach(c => c.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).style.display = 'block';
+  btn.classList.add('active');
+}
+
+function filterTeam(team, btn) {
+  document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const isAll = team === 'all';
+
+  // RQMT 테이블 행 필터
+  document.querySelectorAll('#section-rqmt tbody tr[data-team]').forEach(row => {
+    row.style.display = (isAll || row.dataset.team === team) ? '' : 'none';
+  });
+
+  // 채용공고 탭 버튼 필터
+  const tabBtns = document.querySelectorAll('.tab-btn[data-team]');
+  let firstVisible = null;
+  tabBtns.forEach(b => {
+    const visible = isAll || b.dataset.team === team;
+    b.style.display = visible ? '' : 'none';
+    if (visible && !firstVisible) firstVisible = b;
+  });
+
+  // 모든 카드 숨기고 첫 번째 보이는 탭 활성화
+  document.querySelectorAll('.posting-card').forEach(c => c.style.display = 'none');
+  tabBtns.forEach(b => b.classList.remove('active'));
+  if (firstVisible) {
+    firstVisible.classList.add('active');
+    const tabId = firstVisible.getAttribute('onclick').match(/'(.+?)'/)[1];
+    document.getElementById(tabId).style.display = 'block';
+  }
+}
+</script>
+
+</body>
+</html>

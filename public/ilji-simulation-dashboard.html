@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>기본급 인상률 최적 배분 시뮬레이션</title>
+<!-- font: Arial/Helvetica base -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideIn { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
+@keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.02); } }
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial,Helvetica,'Malgun Gothic',sans-serif; background:#f9fafb; color:#111827; min-height:100vh; }
+
+.header {
+    background:white; color:#111827; padding:28px 40px;
+    border-bottom:2px solid #e5e7eb; border-left:4px solid #3b82f6;
+    box-shadow:0 1px 2px 0 rgba(0,0,0,0.05);
+}
+.header h1 { font-size:20px; font-weight:600; color:#111827; }
+.header p { font-size:13px; color:#6b7280; margin-top:4px; }
+
+.container { max-width:1280px; margin:0 auto; padding:20px; }
+
+/* === 메인 탭 네비게이션 === */
+.main-tabs { display:flex; gap:0; margin-bottom:20px; background:white; border-radius:8px; padding:4px; border:1px solid #e5e7eb; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); }
+.main-tab {
+    flex:1; padding:14px 20px; cursor:pointer; font-size:13px; font-weight:600; color:#6b7280;
+    border:none; background:transparent; border-radius:6px; transition:all 0.2s ease;
+    text-align:center; position:relative; letter-spacing:0.5px;
+}
+.main-tab:hover { color:#374151; background:rgba(0,0,0,0.02); }
+.main-tab.active {
+    background:#3b82f6;
+    color:white; box-shadow:0 1px 2px 0 rgba(59,130,246,0.25);
+}
+.main-tab .tab-icon { display:block; font-size:11px; font-weight:700; letter-spacing:1px; margin-bottom:4px; }
+.main-tab .tab-label { font-size:12px; }
+.main-tab-content { display:none; animation:fadeIn 0.4s ease; }
+.main-tab-content.active { display:block; }
+
+/* === 공통 패널 === */
+.grid { display:grid; grid-template-columns:340px 1fr; gap:20px; }
+.panel {
+    background:white;
+    border-radius:8px; padding:22px; border:1px solid #e5e7eb;
+    box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); animation:fadeIn 0.5s ease; transition:all 0.2s ease;
+}
+.panel:hover { border-color:#d1d5db; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.panel h3 {
+    font-size:14px; font-weight:600; color:#111827; margin-bottom:16px;
+    padding-bottom:10px; border-bottom:1px solid #e5e7eb;
+}
+.panel-icon { display:inline-block; margin-right:6px; }
+
+/* === 유형 설명 탭 === */
+.type-sub-tabs { display:flex; gap:0; border-bottom:2px solid #e0e0e0; margin-bottom:20px; }
+.type-sub-tab {
+    padding:12px 28px; cursor:pointer; font-size:13px; font-weight:600; color:#999;
+    border:none; background:transparent; border-bottom:3px solid transparent;
+    transition:all 0.3s; letter-spacing:0.5px;
+}
+.type-sub-tab:hover { color:#555; }
+.type-sub-tab.active { color:#3b82f6; border-bottom-color:#3b82f6; }
+.type-sub-content { display:none; animation:fadeIn 0.4s ease; }
+.type-sub-content.active { display:block; }
+
+.type-cards { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+.type-card {
+    border-radius:8px; padding:20px; border:1px solid #e5e7eb;
+    transition:all 0.2s ease; position:relative; overflow:hidden;
+}
+.type-card:hover { border-color:#d1d5db; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.type-card::before {
+    content:''; position:absolute; top:0; left:0; width:4px; height:100%; border-radius:4px 0 0 4px;
+}
+.type-card .tc-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.type-card .tc-icon { font-size:22px; }
+.type-card .tc-title { font-size:14px; font-weight:700; }
+.type-card .tc-subtitle { font-size:10px; color:#999; font-weight:400; margin-left:4px; }
+.type-card .tc-body { font-size:12px; line-height:1.8; color:#555; }
+.type-card .tc-body strong { color:#222; font-weight:600; }
+.type-card .tc-metrics { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.type-card .tc-metric {
+    padding:4px 10px; border-radius:20px; font-size:10px; font-weight:600;
+    background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.08);
+}
+.type-card .tc-risk { margin-top:10px; padding:8px 12px; border-radius:8px; font-size:11px; font-weight:600; }
+.tc-chart-area { margin-top:14px; display:flex; align-items:center; gap:12px; padding-top:12px; border-top:1px solid rgba(0,0,0,0.05); }
+.tc-chart-wrap { width:100px; height:100px; flex-shrink:0; }
+.tc-chart-wrap canvas { max-height:100px !important; }
+.tc-chart-legend { font-size:10px; color:#666; line-height:1.8; }
+.tc-chart-legend .leg-item { display:flex; align-items:center; gap:6px; }
+.tc-chart-legend .leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.tc-chart-legend .leg-count { color:#999; font-size:9px; }
+
+.tc-mol-high { background:white; border-left:4px solid #10b981; }
+.tc-mol-high::before { display:none; }
+.tc-mol-high .tc-title { color:#059669; }
+.tc-mol-tenure { background:white; border-left:4px solid #3b82f6; }
+.tc-mol-tenure::before { display:none; }
+.tc-mol-tenure .tc-title { color:#2563eb; }
+.tc-mol-normal { background:white; border-left:4px solid #f59e0b; }
+.tc-mol-normal::before { display:none; }
+.tc-mol-normal .tc-title { color:#d97706; }
+.tc-mol-low { background:white; border-left:4px solid #ef4444; }
+.tc-mol-low::before { display:none; }
+.tc-mol-low .tc-title { color:#dc2626; }
+
+.tc-sat-leader { background:white; border-left:4px solid #8b5cf6; }
+.tc-sat-leader::before { display:none; }
+.tc-sat-leader .tc-title { color:#7c3aed; }
+.tc-sat-comp { background:white; border-left:4px solid #14b8a6; }
+.tc-sat-comp::before { display:none; }
+.tc-sat-comp .tc-title { color:#0d9488; }
+.tc-sat-higheq { background:white; border-left:4px solid #10b981; }
+.tc-sat-higheq::before { display:none; }
+.tc-sat-higheq .tc-title { color:#059669; }
+.tc-sat-loweq { background:white; border-left:4px solid #ef4444; }
+.tc-sat-loweq::before { display:none; }
+.tc-sat-loweq .tc-title { color:#dc2626; }
+
+/* === AI 제안안 탭 === */
+.ai-scenarios { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+.ai-card {
+    border-radius:8px; padding:24px; cursor:pointer; position:relative; overflow:hidden;
+    border:2px solid #e5e7eb; transition:all 0.2s ease; background:white;
+}
+.ai-card:hover { box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.ai-card.selected { border-width:2px; }
+.ai-card.selected::after {
+    content:'APPLIED'; position:absolute; top:12px; right:12px;
+    background:#3b82f6; color:white;
+    padding:3px 10px; border-radius:12px; font-size:9px; font-weight:700; letter-spacing:1px;
+}
+.ai-card .ai-badge {
+    display:inline-block; padding:4px 12px; border-radius:20px; font-size:10px; font-weight:700;
+    margin-bottom:12px; letter-spacing:1px;
+}
+.ai-card .ai-name { font-size:16px; font-weight:800; margin-bottom:6px; }
+.ai-card .ai-desc { font-size:11px; color:#666; line-height:1.6; margin-bottom:16px; }
+.ai-card .ai-params { font-size:10px; color:#888; line-height:1.8; }
+.ai-card .ai-params span { color:#444; font-weight:600; }
+
+.ai-conservative { background:linear-gradient(145deg,rgba(59,130,246,0.06),white); }
+.ai-conservative .ai-badge { background:rgba(59,130,246,0.15); color:#2563eb; }
+.ai-conservative .ai-name { color:#2563eb; }
+.ai-conservative:hover { border-color:rgba(59,130,246,0.5); }
+.ai-conservative.selected { border-color:#2563eb; box-shadow:0 4px 20px rgba(59,130,246,0.15); }
+
+.ai-balanced { background:linear-gradient(145deg,rgba(16,185,129,0.06),white); }
+.ai-balanced .ai-badge { background:rgba(16,185,129,0.15); color:#059669; }
+.ai-balanced .ai-name { color:#059669; }
+.ai-balanced:hover { border-color:rgba(16,185,129,0.5); }
+.ai-balanced.selected { border-color:#059669; box-shadow:0 4px 20px rgba(16,185,129,0.15); }
+
+.ai-aggressive { background:linear-gradient(145deg,rgba(245,158,11,0.06),white); }
+.ai-aggressive .ai-badge { background:rgba(245,158,11,0.15); color:#d97706; }
+.ai-aggressive .ai-name { color:#d97706; }
+.ai-aggressive:hover { border-color:rgba(245,158,11,0.5); }
+.ai-aggressive.selected { border-color:#d97706; box-shadow:0 4px 20px rgba(245,158,11,0.15); }
+
+.ai-compare-section { margin-bottom:20px; }
+.ai-compare-table-wrap { background:white; border-radius:8px; padding:20px; border:1px solid #e5e7eb; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); overflow-x:auto; }
+.ai-compare-table { width:100%; border-collapse:collapse; font-size:12px; }
+.ai-compare-table th { padding:12px 10px; text-align:center; font-size:11px; letter-spacing:1px; border-bottom:2px solid #ddd; }
+.ai-compare-table .ai-ct-label { text-align:left; color:#666; font-weight:600; width:22%; background:#f8f9fa; }
+.ai-compare-table .ai-ct-con { color:#2563eb; background:rgba(59,130,246,0.04); }
+.ai-compare-table .ai-ct-bal { color:#059669; background:rgba(16,185,129,0.06); font-weight:700; }
+.ai-compare-table .ai-ct-agg { color:#d97706; background:rgba(245,158,11,0.04); }
+.ai-compare-table td { padding:11px 10px; text-align:center; border-bottom:1px solid #f0f0f0; }
+.ai-compare-table td:first-child { text-align:left; color:#444; font-weight:600; font-size:11px; background:#f8f9fa; }
+.ai-compare-table tr:hover td { background:rgba(59,130,246,0.03); }
+.ai-compare-table .ct-highlight { font-weight:800; font-size:14px; }
+.ai-compare-table .ct-best { background:rgba(16,185,129,0.12) !important; border-radius:6px; }
+.ai-compare-table .ct-worst { color:#ccc; }
+
+.ai-compare-charts { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+
+.ai-effects {
+    background:white;
+    border-radius:8px; padding:24px; border:1px solid #e5e7eb;
+    box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); margin-bottom:20px;
+}
+.ai-effects h3 { font-size:14px; font-weight:700; margin-bottom:16px; color:#111827; }
+
+.ai-insight-list { list-style:none; padding:0; }
+.ai-insight-list li {
+    padding:12px 16px; border-radius:8px; margin-bottom:8px; font-size:12px; line-height:1.7;
+    border-left:3px solid; transition:all 0.3s; background:rgba(0,0,0,0.01);
+}
+.ai-insight-list li:hover { transform:translateX(4px); background:rgba(0,0,0,0.03); }
+.ai-insight-list li strong { color:#111827; }
+
+/* === 직접 조정 탭 === */
+.custom-grid { display:grid; grid-template-columns:340px 1fr; gap:20px; }
+
+.slider-group { margin-bottom:18px; }
+.slider-group label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; font-weight:600; color:#555; }
+.slider-group label span { color:#3b82f6; font-weight:700; font-size:14px; transition:all 0.3s; }
+
+input[type=range] { width:100%; height:6px; -webkit-appearance:none; background:#ddd; border-radius:3px; outline:none; transition:background 0.3s; }
+input[type=range]:hover { background:#ccc; }
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+    background:#3b82f6; cursor:pointer;
+    box-shadow:0 2px 8px rgba(59,130,246,0.3); transition:transform 0.2s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.2); }
+
+.budget-info {
+    background:#f9fafb; border-radius:8px; padding:16px;
+    margin-bottom:16px; font-size:12px; border:1px solid #e5e7eb;
+}
+.budget-info .big { font-size:24px; font-weight:700; color:#3b82f6; }
+
+.summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+.summary-card {
+    background:white;
+    border-radius:8px; padding:18px 14px; text-align:center;
+    border:1px solid #e5e7eb; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05);
+    transition:all 0.2s ease;
+}
+.summary-card:hover { border-color:#d1d5db; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.summary-card .val { font-size:24px; font-weight:700; transition:all 0.4s; }
+.summary-card .lbl { font-size:12px; color:#525252; margin-top:6px; }
+
+.charts-area { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.chart-box {
+    background:white;
+    border-radius:8px; padding:18px; border:1px solid #e5e7eb;
+    box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); transition:all 0.2s ease;
+}
+.chart-box:hover { border-color:#d1d5db; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.chart-box h4 { font-size:14px; font-weight:600; color:#111827; margin-bottom:12px; }
+canvas { max-height:260px; }
+
+.heatmap { display:grid; grid-template-columns:110px repeat(3,1fr); gap:3px; font-size:12px; }
+.heatmap-cell {
+    padding:16px 8px; text-align:center; border-radius:8px; font-weight:700; color:white;
+    transition:all 0.2s ease; cursor:default; text-shadow:0 1px 2px rgba(0,0,0,0.3);
+}
+.heatmap-cell:hover { transform:scale(1.02); z-index:1; }
+.heatmap-header { padding:10px 8px; text-align:center; font-weight:600; color:#525252; font-size:11px; }
+.heatmap-row-label { padding:16px 8px; text-align:right; font-weight:600; color:#525252; font-size:11px; display:flex; align-items:center; justify-content:flex-end; }
+
+.section-title {
+    font-size:16px; font-weight:700; margin:24px 0 14px; color:#111827;
+    display:flex; align-items:center; gap:8px;
+}
+.section-title::before { content:''; width:4px; height:20px; background:#3b82f6; border-radius:2px; }
+
+table { width:100%; border-collapse:collapse; font-size:11px; table-layout:auto; }
+th { background:#f9fafb; color:#111827; padding:10px 8px; text-align:center; position:sticky; top:0; font-size:10px; font-weight:600; border-bottom:2px solid #e5e7eb; white-space:nowrap; }
+td { padding:8px 8px; text-align:center; border-bottom:1px solid #f0f0f0; transition:background 0.2s; color:#333; white-space:nowrap; }
+td .tag { white-space:nowrap; }
+tr:hover td { background:rgba(59,130,246,0.04); }
+.scroll-table { max-height:420px; overflow-y:auto; overflow-x:auto; border-radius:8px; }
+.scroll-table::-webkit-scrollbar { width:6px; }
+.scroll-table::-webkit-scrollbar-track { background:#f5f5f5; }
+.scroll-table::-webkit-scrollbar-thumb { background:rgba(59,130,246,0.25); border-radius:3px; }
+
+.tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:10px; font-weight:600; }
+.tag-high { background:rgba(16,185,129,0.15); color:#059669; }
+.tag-mid { background:rgba(245,158,11,0.2); color:#f59e0b; }
+.tag-low { background:rgba(239,68,68,0.2); color:#ef4444; }
+.tag-mol0 { background:rgba(16,185,129,0.2); color:#10b981; }
+.tag-mol1 { background:rgba(59,130,246,0.2); color:#3b82f6; }
+.tag-mol2 { background:rgba(245,158,11,0.2); color:#f59e0b; }
+.tag-mol3 { background:rgba(239,68,68,0.2); color:#ef4444; }
+.tag-sat0 { background:rgba(139,92,246,0.2); color:#8b5cf6; }
+.tag-sat1 { background:rgba(20,184,166,0.2); color:#14b8a6; }
+.tag-sat2 { background:rgba(16,185,129,0.2); color:#10b981; }
+.tag-sat3 { background:rgba(239,68,68,0.2); color:#ef4444; }
+
+.btn-group { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.btn {
+    padding:7px 16px; border:1px solid #ddd; border-radius:8px;
+    background:white; cursor:pointer; font-size:11px; color:#888; transition:all 0.3s;
+}
+.btn:hover { border-color:#3b82f6; color:#3b82f6; }
+.btn.active { background:#3b82f6; color:white; border-color:transparent; }
+
+.reset-btn {
+    width:100%; padding:12px; background:#f3f4f6;
+    color:#374151; border:1px solid #d1d5db; border-radius:8px; cursor:pointer; font-size:12px;
+    font-weight:600; margin-top:12px; transition:all 0.2s ease;
+}
+.reset-btn:hover { background:#e5e7eb; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05); }
+
+.policy-btns { display:flex; gap:6px; margin-bottom:10px; }
+.policy-btn {
+    flex:1; padding:10px 8px; border:2px solid #e5e7eb; border-radius:8px;
+    background:white; cursor:pointer; text-align:center; transition:all 0.2s ease; color:#6b7280;
+}
+.policy-btn:hover { border-color:#3b82f6; }
+.policy-btn.active { border-color:#3b82f6; background:rgba(59,130,246,0.08); color:#3b82f6; }
+.policy-btn .ptitle { font-size:11px; font-weight:700; }
+.policy-btn .pdesc { font-size:9px; opacity:0.6; margin-top:2px; }
+
+.grade-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:12px; }
+.grade-item { text-align:center; }
+.grade-item .glabel { font-size:10px; color:#666; margin-bottom:4px; font-weight:600; }
+.grade-item input {
+    width:100%; text-align:center; background:#f8f9fa; border:1px solid #ddd;
+    border-radius:6px; padding:8px 4px; color:#111827; font-size:14px; font-weight:700; transition:all 0.3s;
+}
+.grade-item input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 10px rgba(59,130,246,0.15); }
+.total-bar {
+    margin-top:8px; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:600;
+    text-align:center; transition:all 0.3s;
+}
+
+.current-mode-badge {
+    display:inline-block; padding:4px 14px; border-radius:20px; font-size:11px; font-weight:700;
+    margin-bottom:16px; letter-spacing:0.5px;
+}
+
+/* === 특별관리 Tier 경고 카드 === */
+.special-tier-card {
+    background:linear-gradient(135deg,rgba(245,158,11,0.06),white);
+    border:2px solid rgba(245,158,11,0.3); border-radius:8px; padding:20px 24px; margin-bottom:20px;
+    position:relative; overflow:hidden; animation:fadeIn 0.5s ease;
+}
+.special-tier-card::before {
+    content:''; position:absolute; top:0; left:0; width:4px; height:100%;
+    background:#f59e0b; border-radius:4px 0 0 4px;
+}
+.special-tier-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.special-tier-header .st-icon { font-size:22px; }
+.special-tier-header .st-title { font-size:15px; font-weight:700; color:#d97706; }
+.special-tier-header .st-badge {
+    background:rgba(245,158,11,0.15); color:#d97706; padding:3px 10px; border-radius:12px;
+    font-size:10px; font-weight:700; letter-spacing:1px; margin-left:auto;
+}
+.special-tier-body { font-size:12px; color:#555; line-height:1.7; margin-bottom:14px; }
+.special-tier-table { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:14px; table-layout:auto; }
+.special-tier-table th { background:rgba(245,158,11,0.08); color:#d97706; padding:8px 8px; text-align:center; font-size:10px; border-bottom:2px solid rgba(245,158,11,0.2); white-space:nowrap; }
+.special-tier-table td { padding:7px 8px; text-align:center; border-bottom:1px solid #f0f0f0; white-space:nowrap; }
+.special-tier-table tr:hover td { background:rgba(239,68,68,0.03); }
+.special-tier-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.st-action {
+    padding:12px 16px; border-radius:10px; font-size:11px; line-height:1.6;
+    border-left:3px solid;
+}
+.st-action strong { display:block; font-size:12px; margin-bottom:4px; }
+
+/* === Executive Summary === */
+.exec-summary {
+    background:linear-gradient(135deg,rgba(59,130,246,0.04),white);
+    border:2px solid rgba(59,130,246,0.15); border-radius:8px; padding:22px 26px; margin-bottom:20px;
+    position:relative; overflow:hidden; animation:fadeIn 0.5s ease;
+}
+.exec-summary::before {
+    content:''; position:absolute; top:0; left:0; width:4px; height:100%;
+    background:#3b82f6; border-radius:4px 0 0 4px;
+}
+.exec-summary-title {
+    font-size:15px; font-weight:700; color:#111827; margin-bottom:16px;
+    display:flex; align-items:center; gap:8px;
+}
+
+.exec-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+.exec-card {
+    background:white; border-radius:8px; padding:16px 14px; text-align:center;
+    border:1px solid #e5e7eb; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05);
+    transition:all 0.2s ease;
+}
+.exec-card:hover { box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.exec-card .ec-label { font-size:12px; color:#525252; margin-bottom:6px; }
+.exec-card .ec-value { font-size:22px; font-weight:800; margin-bottom:4px; }
+.exec-card .ec-sub { font-size:10px; color:#666; line-height:1.5; }
+.exec-card .ec-delta { font-size:11px; font-weight:700; }
+.exec-verdict {
+    font-size:11px; line-height:1.8; color:#444; padding:10px 14px;
+    background:rgba(59,130,246,0.03); border-radius:8px; border-left:3px solid #3b82f6;
+}
+.exec-verdict strong { color:#3b82f6; }
+
+/* === Tier별 보상전략 패널 === */
+.tier-strategy-section { margin-bottom:20px; }
+.tier-strategy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+.tier-strategy-card {
+    border-radius:8px; padding:18px; border:1px solid #e5e7eb;
+    background:white; transition:all 0.2s ease; position:relative; overflow:hidden;
+}
+.tier-strategy-card:hover { box-shadow:0 4px 6px -1px rgba(0,0,0,0.1),0 2px 4px -2px rgba(0,0,0,0.1); }
+.tier-strategy-card::before { content:''; position:absolute; top:0; left:0; width:4px; height:100%; }
+.ts-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.ts-tier-badge { padding:3px 8px; border-radius:8px; font-size:9px; font-weight:700; letter-spacing:1px; color:white; }
+.ts-title { font-size:13px; font-weight:700; }
+.ts-count { font-size:10px; color:#999; margin-left:auto; }
+.ts-desc { font-size:11px; color:#555; line-height:1.7; margin-bottom:10px; }
+.ts-strategy { font-size:10px; line-height:1.6; padding:8px 12px; border-radius:8px; background:rgba(0,0,0,0.02); }
+.ts-strategy strong { color:#3b82f6; }
+.ts-rate { font-size:18px; font-weight:800; margin-top:8px; }
+
+.ts-t1::before { background:#10b981; } .ts-t1 .ts-tier-badge { background:#10b981; } .ts-t1 .ts-title { color:#059669; } .ts-t1 .ts-rate { color:#059669; }
+.ts-t2::before { background:#3b82f6; } .ts-t2 .ts-tier-badge { background:#3b82f6; } .ts-t2 .ts-title { color:#2563eb; } .ts-t2 .ts-rate { color:#2563eb; }
+.ts-t3::before { background:#f59e0b; } .ts-t3 .ts-tier-badge { background:#f59e0b; } .ts-t3 .ts-title { color:#d97706; } .ts-t3 .ts-rate { color:#d97706; }
+.ts-t4::before { background:#8b5cf6; } .ts-t4 .ts-tier-badge { background:#8b5cf6; } .ts-t4 .ts-title { color:#7c3aed; } .ts-t4 .ts-rate { color:#7c3aed; }
+.ts-t5::before { background:#ef4444; } .ts-t5 .ts-tier-badge { background:#ef4444; } .ts-t5 .ts-title { color:#dc2626; } .ts-t5 .ts-rate { color:#dc2626; }
+
+/* Tier 상세 테이블 (토글) */
+.tier-strategy-card { cursor:pointer; }
+.ts-detail { display:none; margin-top:12px; border-top:1px solid #eee; padding-top:10px; animation:fadeIn 0.3s ease; }
+.ts-detail.open { display:block; }
+.ts-detail-table { width:100%; border-collapse:collapse; font-size:10px; table-layout:auto; }
+.ts-detail-table th { padding:6px 6px; text-align:center; font-size:9px; color:#888; border-bottom:1px solid #eee; background:rgba(0,0,0,0.02); white-space:nowrap; }
+.ts-detail-table td { padding:5px 6px; text-align:center; border-bottom:1px solid #f5f5f5; white-space:nowrap; }
+.ts-detail-table td:first-child { font-weight:600; text-align:left; }
+.ts-detail-table td .tag { font-size:9px; padding:2px 6px; }
+.ts-toggle-hint { font-size:9px; color:#bbb; text-align:right; margin-top:6px; }
+
+/* 전환확률 인사이트 카드 */
+.transition-insight {
+    background:linear-gradient(135deg,rgba(16,185,129,0.06),white);
+    border:1px solid rgba(16,185,129,0.2); border-radius:8px; padding:16px 18px; margin-top:14px;
+}
+.transition-insight .ti-title { font-size:12px; font-weight:700; color:#059669; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.transition-bars { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.ti-bar-group { text-align:center; }
+.ti-bar-label { font-size:9px; color:#888; margin-bottom:4px; }
+.ti-bar-wrap { height:60px; display:flex; align-items:flex-end; justify-content:center; gap:3px; }
+.ti-bar { width:18px; border-radius:3px 3px 0 0; transition:height 0.4s ease; position:relative; }
+.ti-bar-val { font-size:9px; font-weight:700; position:absolute; top:-14px; left:50%; transform:translateX(-50%); white-space:nowrap; }
+.ti-bar-bottom { font-size:8px; color:#999; margin-top:3px; }
+.ti-note { font-size:10px; color:#555; line-height:1.7; margin-top:10px; padding:8px 12px; border-radius:8px; background:rgba(0,0,0,0.02); }
+
+/* 개인별 테이블 특별관리 하이라이트 */
+tr.special-watch td { background:rgba(239,68,68,0.04) !important; }
+tr.special-watch td:first-child::before { content:'▲ '; color:#f59e0b; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>기본급 인상률 최적 배분 시뮬레이션</h1>
+    <p>비승진자 대상 · 평가등급 x 몰입유형 x 보상정책선 3요소 가중 배분 · 실시간 인터랙티브</p>
+</div>
+
+<div class="container">
+
+<!-- 메인 탭 네비게이션 -->
+<div class="main-tabs">
+    <button class="main-tab active" onclick="switchMainTab('types',this)">
+        <span class="tab-icon" style="font-size:11px;font-weight:700;letter-spacing:1px">01</span>
+        <span class="tab-label">유형 설명</span>
+    </button>
+    <button class="main-tab" onclick="switchMainTab('ai',this)">
+        <span class="tab-icon" style="font-size:11px;font-weight:700;letter-spacing:1px">AI</span>
+        <span class="tab-label">최적 인상률 (AI Powered)</span>
+    </button>
+    <button class="main-tab" onclick="switchMainTab('custom',this)">
+        <span class="tab-icon" style="font-size:11px;font-weight:700;letter-spacing:1px">SIM</span>
+        <span class="tab-label">Simulation</span>
+    </button>
+</div>
+
+<!-- ====== 탭1: 유형 설명 ====== -->
+<div class="main-tab-content active" id="mtab_types">
+    <div class="type-sub-tabs">
+        <button class="type-sub-tab active" onclick="switchTypeSub('mol',this)">몰입유형 분류 기준</button>
+        <button class="type-sub-tab" onclick="switchTypeSub('sat',this)">만족유형 분류 기준</button>
+    </div>
+
+    <div class="type-sub-content active" id="tsub_mol">
+        <div class="type-cards">
+            <div class="type-card tc-mol-high">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#10b981;font-size:18px">▲</span>
+                    <span class="tc-title">고몰입형<span class="tc-subtitle">High Engagement</span></span>
+                </div>
+                <div class="tc-body">
+                    Pride(3.94), 만족도(4.01), 추천의지(3.83), 재직의사(3.91), 성장감(4.11) <strong>모든 항목에서 일관되게 높은 점수</strong>를 보임. 조직에 대한 자긍심과 만족도가 높고 성장을 체감하는 <strong>핵심인력 그룹</strong>
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#10b981">Pride 3.94</span>
+                    <span class="tc-metric" style="color:#10b981">만족도 4.01</span>
+                    <span class="tc-metric" style="color:#10b981">추천의지 3.83</span>
+                    <span class="tc-metric" style="color:#10b981">재직의사 3.91</span>
+                    <span class="tc-metric" style="color:#10b981">성장감 4.11</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(16,185,129,0.1);color:#10b981">▲ 핵심 유지 대상 — 몰입 요인 벤치마킹하여 타 그룹 확산</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_mol_0"></canvas></div><div class="tc-chart-legend" id="dcl_mol_0"></div></div>
+            </div>
+            <div class="type-card tc-mol-tenure">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#3b82f6;font-size:18px">●</span>
+                    <span class="tc-title">안주형<span class="tc-subtitle">Comfort-Zone</span></span>
+                </div>
+                <div class="tc-body">
+                    Pride(3.23), 만족도(3.23), 추천의지(3.03)는 보통 수준이고 <strong>재직의사(4.00)는 높으나 성장감(2.72)은 낮음</strong>. 조직에 대한 특별한 애착은 없지만 안정성이나 익숙함을 이유로 잔류하며, <strong>성장 정체</strong>를 느끼는 그룹
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#3b82f6">재직의사 4.00</span>
+                    <span class="tc-metric" style="color:#f59e0b">Pride 3.23</span>
+                    <span class="tc-metric" style="color:#f59e0b">추천의지 3.03</span>
+                    <span class="tc-metric" style="color:#ef4444">성장감 2.72</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(59,130,246,0.1);color:#3b82f6">● 안정적이나 성장 정체 — 성장 기회 제공으로 몰입 전환 유도</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_mol_1"></canvas></div><div class="tc-chart-legend" id="dcl_mol_1"></div></div>
+            </div>
+            <div class="type-card tc-mol-normal">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#f59e0b;font-size:18px">●</span>
+                    <span class="tc-title">개인성장형<span class="tc-subtitle">Personal-Growth Focused</span></span>
+                </div>
+                <div class="tc-body">
+                    Pride(3.07), 만족도(2.67), 추천의지(2.72)는 낮으나 <strong>재직의사(3.74)와 성장감(3.81)은 상대적으로 높음</strong>. 조직에 대한 애착은 낮지만 <strong>개인의 성장과 경력개발 기회</strong>를 위해 잔류하는 그룹
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#10b981">성장감 3.81</span>
+                    <span class="tc-metric" style="color:#f59e0b">재직의사 3.74</span>
+                    <span class="tc-metric" style="color:#ef4444">만족도 2.67</span>
+                    <span class="tc-metric" style="color:#ef4444">추천의지 2.72</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(245,158,11,0.1);color:#f59e0b">◆ 경력 성장 동기 활용 — 조직 몰입으로 전환 유도 가능</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_mol_2"></canvas></div><div class="tc-chart-legend" id="dcl_mol_2"></div></div>
+            </div>
+            <div class="type-card tc-mol-low">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#ef4444;font-size:18px">▼</span>
+                    <span class="tc-title">저몰입형<span class="tc-subtitle">Low Engagement</span></span>
+                </div>
+                <div class="tc-body">
+                    Pride(2.76), 만족도(2.78), 추천의지(2.46), 재직의사(2.40), 성장감(2.71) <strong>모든 항목에서 일관되게 낮은 점수</strong>를 기록. 조직에 대한 긍정적 인식과 정서적 애착이 모두 낮은 <strong>고위험 이탈 예비군</strong>
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#ef4444">5문항 모두 저점</span>
+                    <span class="tc-metric" style="color:#ef4444">재직의사 2.40</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(239,68,68,0.1);color:#ef4444">▼ 고위험 이탈 — 근본적 개입 또는 전략적 분리 검토 필요</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_mol_3"></canvas></div><div class="tc-chart-legend" id="dcl_mol_3"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="type-sub-content" id="tsub_sat">
+        <p style="font-size:11px;color:#888;margin-bottom:14px;letter-spacing:0.5px">분류 기준: 직급 적합성, 승진 공정성, 평가 공정성, 평가제도 만족도, 보상 수준, 보상 공정성</p>
+        <div class="type-cards">
+            <div class="type-card tc-sat-leader">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#f59e0b;font-size:18px">●</span>
+                    <span class="tc-title">안정 온건형<span class="tc-subtitle">Stable Moderate</span></span>
+                </div>
+                <div class="tc-body">
+                    6개 항목 모두 <strong>3.16~3.47로 일관되게 중상 수준</strong>을 유지. 직급 적합성(3.47)이 가장 높고, 승진 공정성(3.16)이 가장 낮으나 편차가 크지 않음. 극단적 불만 없이 <strong>조직에 안정적으로 적응한 관망형</strong> 세그먼트.
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#8b5cf6">직급적합성 3.47</span>
+                    <span class="tc-metric" style="color:#8b5cf6">평가공정성 3.30</span>
+                    <span class="tc-metric" style="color:#8b5cf6">보상공정성 3.20</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(139,92,246,0.1);color:#8b5cf6">● 관망형 — 전반적 안정이나 적극적 몰입 유도를 위한 차별 동기부여 필요</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_sat_0"></canvas></div><div class="tc-chart-legend" id="dcl_sat_0"></div></div>
+            </div>
+            <div class="type-card tc-sat-comp">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#14b8a6;font-size:18px">▼</span>
+                    <span class="tc-title">보상 불만형<span class="tc-subtitle">Compensation-Dissatisfied</span></span>
+                </div>
+                <div class="tc-body">
+                    승진 공정성(2.98), 평가 공정성(3.00) 등 평가·승진 영역은 보통 수준이나, <strong>보상 수준(1.76)이 전 유형 중 최저</strong>이며 보상 공정성(2.21)도 낮음. 직급 적합성(2.54)도 불만. <strong>보상 및 처우에 집중된 불만</strong>을 지닌 그룹.
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#ef4444">보상수준 1.76</span>
+                    <span class="tc-metric" style="color:#ef4444">보상공정성 2.21</span>
+                    <span class="tc-metric" style="color:#f59e0b">직급적합성 2.54</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(20,184,166,0.1);color:#14b8a6">◆ 보상 불만 집중 — 기본급 인상률 차등 배분의 핵심 반응 대상</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_sat_1"></canvas></div><div class="tc-chart-legend" id="dcl_sat_1"></div></div>
+            </div>
+            <div class="type-card tc-sat-higheq">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#10b981;font-size:18px">▲</span>
+                    <span class="tc-title">직급 만족형<span class="tc-subtitle">Position-Satisfied</span></span>
+                </div>
+                <div class="tc-body">
+                    <strong>직급 적합성(3.69)</strong>이 전 유형 중 최고이나, 승진 공정성(2.22), 평가 공정성(2.43), 평가제도 만족도(2.26), <strong>보상 수준(1.70)</strong>, 보상 공정성(1.99) 모두 <strong>매우 낮음</strong>. 현재 직급에는 만족하지만 <strong>승진·보상 제도 전반에 강한 불만</strong>.
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#10b981">직급적합성 3.69</span>
+                    <span class="tc-metric" style="color:#ef4444">보상수준 1.70</span>
+                    <span class="tc-metric" style="color:#ef4444">보상공정성 1.99</span>
+                    <span class="tc-metric" style="color:#ef4444">승진공정성 2.22</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(16,185,129,0.1);color:#10b981">▲ 직급 만족은 유지하되 승진·보상 제도 개선 시급 — 이탈 방지 핵심</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_sat_2"></canvas></div><div class="tc-chart-legend" id="dcl_sat_2"></div></div>
+            </div>
+            <div class="type-card tc-sat-loweq">
+                <div class="tc-header">
+                    <span class="tc-icon" style="color:#ef4444;font-size:18px">▼</span>
+                    <span class="tc-title">전반 불만형<span class="tc-subtitle">Overall-Dissatisfied</span></span>
+                </div>
+                <div class="tc-body">
+                    직급 적합성(1.97), 승진 공정성(1.73), <strong>평가 공정성(1.61)</strong>, 평가제도 만족도(1.81), 보상 수준(2.15), 보상 공정성(2.08) — <strong>6개 항목 모두 일관되게 최저 수준</strong>. 조직의 모든 제도적 측면에 대한 불만이 높은 <strong>고위험 이탈 예비군</strong>.
+                </div>
+                <div class="tc-metrics">
+                    <span class="tc-metric" style="color:#ef4444">평가공정성 1.61</span>
+                    <span class="tc-metric" style="color:#ef4444">승진공정성 1.73</span>
+                    <span class="tc-metric" style="color:#ef4444">평가제도 1.81</span>
+                </div>
+                <div class="tc-risk" style="background:rgba(239,68,68,0.1);color:#ef4444">▼ 고위험 이탈 예비군 — 즉각적 개입 및 전략적 분리 검토 필요</div>
+                <div class="tc-chart-area"><div class="tc-chart-wrap"><canvas id="dc_sat_3"></canvas></div><div class="tc-chart-legend" id="dcl_sat_3"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ====== 탭2: AI 제안안 ====== -->
+<div class="main-tab-content" id="mtab_ai">
+    <!-- 시나리오 선택 카드 -->
+    <div class="ai-scenarios">
+        <div class="ai-card ai-conservative" id="ai_card_conservative" onclick="applyAI('conservative')">
+            <div class="ai-badge">MARKET FIT</div>
+            <div class="ai-name">시장경쟁력 확보형</div>
+            <div class="ai-desc">전 직급 시장 50%ile 정렬 · G3 하위 보정 · 완만한 차등</div>
+        </div>
+        <div class="ai-card ai-balanced selected" id="ai_card_balanced" onclick="applyAI('balanced')">
+            <div class="ai-badge">RECOMMENDED</div>
+            <div class="ai-name">몰입전환 최적형</div>
+            <div class="ai-desc">저몰입→고몰입 전환 극대화 · 개인성장형 전환 유도 · 보상불만 해소</div>
+        </div>
+        <div class="ai-card ai-aggressive" id="ai_card_aggressive" onclick="applyAI('aggressive')">
+            <div class="ai-badge">AGGRESSIVE</div>
+            <div class="ai-name">핵심인력 집중형</div>
+            <div class="ai-desc">고몰입×고성과 집중 투자 · 65%ile 목표 · 저몰입 경고 신호</div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="exec-summary" id="exec_summary">
+        <div class="exec-summary-title">Executive Summary</div>
+        <div class="exec-cards" id="exec_cards"></div>
+        <div class="exec-verdict" id="exec_verdict"></div>
+    </div>
+
+    <!-- Tier별 보상전략 패널 -->
+    <div class="tier-strategy-section">
+        <div class="section-title">Tier별 보상 전략 제안</div>
+        <div class="tier-strategy-grid" id="tier_strategy_grid"></div>
+        <div class="tier-strategy-grid" id="tier_strategy_grid2" style="grid-template-columns:repeat(2,1fr)"></div>
+    </div>
+
+    <!-- 특별관리 Tier 경고 카드 -->
+    <div class="special-tier-card" id="special_tier_panel">
+        <div class="special-tier-header">
+            <span class="st-icon" style="color:#ef4444;font-size:18px">▼</span>
+            <span class="st-title">특별관리 Tier — 저몰입 × 고성과</span>
+            <span class="st-badge" id="st_count_badge">6명</span>
+        </div>
+        <div class="special-tier-body">
+            성과는 S/A등급이나 몰입도가 <strong>저몰입형</strong>으로 분류된 인력. <strong>현재 가치는 높으나 이탈 리스크가 가장 큰 그룹</strong>이며, 보상 시그널과 비보상 개입을 동시에 적용해야 합니다.
+        </div>
+        <div class="scroll-table" style="max-height:220px">
+            <table class="special-tier-table" id="special_tier_table">
+                <thead><tr>
+                    <th>성명</th><th>직급</th><th>등급</th><th>만족유형</th><th>몰입변화</th>
+                    <th>24기본급</th><th>현재%ile</th><th>적용 인상률</th><th>인상후%ile</th>
+                </tr></thead>
+                <tbody id="special_tier_tbody"></tbody>
+            </table>
+        </div>
+        <div style="margin-top:14px">
+            <div class="special-tier-actions" id="special_tier_actions">
+                <div class="st-action" style="background:rgba(239,68,68,0.05);border-color:#ef4444">
+                    <strong>▲ 보상 Track</strong>
+                    시나리오 상한 인상률 적용 · 시장 대비 열위인 과장급 우선 보정 · "핵심인재 인정" 시그널
+                </div>
+                <div class="st-action" style="background:rgba(59,130,246,0.05);border-color:#3b82f6">
+                    <strong>● 비보상 Track</strong>
+                    만성 저몰입(2명) 심층면담 · 최근 하락(4명) 트리거 진단 · 만족유형별 차별 대응
+                </div>
+            </div>
+        </div>
+        <!-- 전환확률 인사이트 -->
+        <div class="transition-insight" id="transition_insight_panel"></div>
+    </div>
+
+    <!-- 기대효과 분석 차트 -->
+    <div class="ai-compare-charts">
+        <div class="chart-box"><h4>선택 시나리오 — 몰입유형 분포 변화</h4><canvas id="chartAiMolDist"></canvas></div>
+        <div class="chart-box"><h4>선택 시나리오 — 만족유형 분포 변화</h4><canvas id="chartAiSatDist"></canvas></div>
+    </div>
+
+    <!-- 선택된 시나리오 인사이트 -->
+    <div class="ai-effects" id="ai_effects_panel">
+        <h3 id="ai_effects_title">전략적 인사이트 — <span style="color:#10b981">균형 최적형 전략</span></h3>
+        <ul class="ai-insight-list" id="ai_insight_list"></ul>
+    </div>
+</div>
+
+<!-- ====== 탭3: 직접 조정 ====== -->
+<div class="main-tab-content" id="mtab_custom">
+    <div class="current-mode-badge" id="current_mode_badge" style="background:rgba(16,185,129,0.2);color:#10b981">현재 적용: 균형 최적형 (기본값)</div>
+    <div class="custom-grid">
+        <!-- 좌측 파라미터 -->
+        <div>
+            <div class="panel">
+                <h3><span class="panel-icon" style="color:#14b8a6;font-size:18px">▼</span> 인상 재원</h3>
+                <div class="slider-group">
+                    <label>재원 비율 <span id="v_budget">3.5%</span></label>
+                    <input type="range" id="s_budget" min="1" max="8" step="0.1" value="3.5">
+                </div>
+                <div class="budget-info">
+                    <div style="color:#888">비승진자 기본급 총액</div>
+                    <div id="total_salary" style="font-weight:600;color:#333"></div>
+                    <div style="margin-top:8px;color:#888">인상 재원</div>
+                    <div class="big" id="budget_amount"></div>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top:16px">
+                <h3> 평가등급별 배분 비율</h3>
+                <div class="grade-grid">
+                    <div class="grade-item"><div class="glabel">S등급</div><input type="number" id="g_S" value="150" min="0" max="500" step="5"></div>
+                    <div class="grade-item"><div class="glabel">A등급</div><input type="number" id="g_A" value="120" min="0" max="500" step="5"></div>
+                    <div class="grade-item"><div class="glabel">B등급</div><input type="number" id="g_B" value="100" min="0" max="500" step="5"></div>
+                    <div class="grade-item"><div class="glabel">C등급</div><input type="number" id="g_C" value="60" min="0" max="500" step="5"></div>
+                </div>
+                <div class="total-bar" id="grade_total_bar"></div>
+            </div>
+
+            <div class="panel" style="margin-top:16px">
+                <h3> 보상정책선 (Target Percentile)</h3>
+                <div class="policy-btns">
+                    <div class="policy-btn" id="pol_25" onclick="setPolicy(25)"><div class="ptitle">25%ile</div><div class="pdesc">보수적</div></div>
+                    <div class="policy-btn active" id="pol_50" onclick="setPolicy(50)"><div class="ptitle">50%ile</div><div class="pdesc">시장 중위</div></div>
+                    <div class="policy-btn" id="pol_75" onclick="setPolicy(75)"><div class="ptitle">75%ile</div><div class="pdesc">적극적</div></div>
+                </div>
+                <div class="slider-group">
+                    <label>목표 Percentile <span id="v_policy">50%ile</span></label>
+                    <input type="range" id="s_policy" min="10" max="90" step="1" value="50">
+                </div>
+                <p style="font-size:10px;color:#555;margin-top:4px">목표 대비 낮은 인력일수록 인상 우대</p>
+            </div>
+
+            <div class="panel" style="margin-top:16px">
+                <h3><span class="panel-icon" style="color:#10b981;font-size:18px">▲</span> 몰입유형 가중치</h3>
+                <div class="slider-group"><label>고몰입형 <span id="v_mol0">1.5</span></label><input type="range" id="s_mol0" min="0.5" max="3.0" step="0.1" value="1.5"></div>
+                <div class="slider-group"><label>안주형 <span id="v_mol1">1.0</span></label><input type="range" id="s_mol1" min="0.3" max="2.0" step="0.1" value="1.0"></div>
+                <div class="slider-group"><label>개인성장형 <span id="v_mol2">0.8</span></label><input type="range" id="s_mol2" min="0.3" max="2.0" step="0.1" value="0.8"></div>
+                <div class="slider-group"><label>저몰입형 <span id="v_mol3">0.7</span></label><input type="range" id="s_mol3" min="0.1" max="1.5" step="0.1" value="0.7"></div>
+            </div>
+
+            <button class="reset-btn" onclick="resetParams()">⟲ 파라미터 초기화</button>
+        </div>
+
+        <!-- 우측 결과 -->
+        <div>
+            <div class="summary-grid">
+                <div class="summary-card"><div class="val" id="sum_avg" style="color:#3b82f6"></div><div class="lbl">평균 인상률</div></div>
+                <div class="summary-card"><div class="val" id="sum_max" style="color:#059669"></div><div class="lbl">최대 인상률</div></div>
+                <div class="summary-card"><div class="val" id="sum_min" style="color:#dc2626"></div><div class="lbl">최소 인상률</div></div>
+                <div class="summary-card"><div class="val" id="sum_ratio" style="color:#7c3aed"></div><div class="lbl">최대/최소 배율</div></div>
+            </div>
+
+            <div class="panel">
+                <h3>몰입유형 x 성과 평균 인상률 (%)</h3>
+                <div class="heatmap" id="heatmap"></div>
+            </div>
+
+            <div class="charts-area" style="margin-top:16px">
+                <div class="chart-box"><h4>직급별 평균 인상률</h4><canvas id="chartRank"></canvas></div>
+                <div class="chart-box"><h4>직급별 시장 Percentile 변화</h4><canvas id="chartPctile"></canvas></div>
+                <div class="chart-box"><h4>25년 몰입유형 분포 예측</h4><canvas id="chartMol"></canvas></div>
+                <div class="chart-box"><h4>25년 만족유형 분포 예측</h4><canvas id="chartSat"></canvas></div>
+            </div>
+
+            <div class="section-title">개인별 배분 상세</div>
+            <div class="panel">
+                <div class="btn-group">
+                    <button class="btn active" onclick="sortTable('rate_desc',this)">인상률 높은순</button>
+                    <button class="btn" onclick="sortTable('rate_asc',this)">인상률 낮은순</button>
+                    <button class="btn" onclick="sortTable('rank',this)">직급순</button>
+                    <button class="btn" onclick="sortTable('pctile',this)">Percentile 낮은순</button>
+                </div>
+                <div class="scroll-table">
+                    <table>
+                        <thead><tr>
+                            <th>성명</th><th>직급</th><th>등급</th><th>몰입유형</th><th>만족유형</th><th>성과</th>
+                            <th>24기본급</th><th>현재%ile</th><th>가중치</th>
+                            <th>인상률</th><th>인상액</th><th>25기본급</th><th>인상후%ile</th>
+                        </tr></thead>
+                        <tbody id="tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+const DATA = {"employees": [{"id": "F5020", "name": "김*호", "rank": "G3", "salary": 81955363.20637774, "percentile": 74.8, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "직급만족형"}, {"id": "F4118", "name": "조*민", "rank": "G3", "salary": 82553606.41275549, "percentile": 76.5, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "F8128", "name": "황*준", "rank": "G3", "salary": 79051545.80492182, "percentile": 65.6, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "전반불만형"}, {"id": "F5088", "name": "윤*수", "rank": "G3", "salary": 81506387.09279674, "percentile": 73.5, "grade": "S", "perf": "고성과", "mol": "저몰입형", "sat": "안정온건형"}, {"id": "E1024", "name": "조*원", "rank": "G3", "salary": 78806611.60984364, "percentile": 64.8, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "직급만족형"}, {"id": "F5059", "name": "안*욱", "rank": "G3", "salary": 78992619.35132019, "percentile": 65.4, "grade": "A", "perf": "고성과", "mol": "안주형", "sat": "전반불만형"}, {"id": "D8025", "name": "안*희", "rank": "G3", "salary": 76299677.04498714, "percentile": 56.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G1050", "name": "양*용", "rank": "G3", "salary": 79560227.09279674, "percentile": 67.3, "grade": "S", "perf": "고성과", "mol": "개인성장형", "sat": "전반불만형"}, {"id": "D8010", "name": "채*병", "rank": "G3", "salary": 76211731.60984364, "percentile": 55.7, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "보상불만형"}, {"id": "G3104", "name": "박*철", "rank": "G3", "salary": 76097251.60984364, "percentile": 55.3, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "F9011", "name": "김*정", "rank": "G3", "salary": 75868291.60984364, "percentile": 54.4, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "D8029", "name": "노*진", "rank": "G3", "salary": 75375465.16640745, "percentile": 52.6, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "D8007", "name": "박*훈", "rank": "G3", "salary": 71643242.74230376, "percentile": 39.2, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3128", "name": "김*인", "rank": "G3", "salary": 74497785.16640745, "percentile": 49.4, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3034", "name": "배*정", "rank": "G3", "salary": 74421465.16640745, "percentile": 49.2, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "F1413", "name": "이*식", "rank": "G3", "salary": 73658265.16640745, "percentile": 46.4, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "전반불만형"}, {"id": "E1030", "name": "서*민", "rank": "G3", "salary": 69429962.74230376, "percentile": 31.6, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "F1356", "name": "황*수", "rank": "G3", "salary": 69816825.80492182, "percentile": 32.9, "grade": "C", "perf": "저성과", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "F4144", "name": "이*현", "rank": "G3", "salary": 69124682.74230376, "percentile": 30.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "E1050", "name": "반*욱", "rank": "G3", "salary": 69465773.73402636, "percentile": 31.8, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "보상불만형"}, {"id": "F4210", "name": "김*영", "rank": "G3", "salary": 67252493.73402636, "percentile": 24.9, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "G0009", "name": "김*준", "rank": "G3", "salary": 67184102.72028586, "percentile": 24.7, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "전반불만형"}, {"id": "F1403", "name": "권*석", "rank": "G2", "salary": 70435797.87866054, "percentile": 92.9, "grade": "A", "perf": "고성과", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "G3132", "name": "도*재", "rank": "G2", "salary": 70002650.22005107, "percentile": 92.2, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "F1111", "name": "김*은", "rank": "G2", "salary": 68304810.50526586, "percentile": 88.8, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "직급만족형"}, {"id": "F5068", "name": "최*철", "rank": "G2", "salary": 67503450.50526586, "percentile": 86.9, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "직급만족형"}, {"id": "F4105", "name": "백*진", "rank": "G2", "salary": 67007370.50526587, "percentile": 85.6, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "F1295", "name": "사**민", "rank": "G2", "salary": 64816761.80282588, "percentile": 78.8, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "안정온건형"}, {"id": "F8129", "name": "박*영", "rank": "G2", "salary": 66358650.50526587, "percentile": 83.7, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "전반불만형"}, {"id": "F1104", "name": "오*한", "rank": "G2", "salary": 64549641.80282588, "percentile": 77.9, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "F1642", "name": "손*원", "rank": "G2", "salary": 64320681.80282588, "percentile": 77.1, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "보상불만형"}, {"id": "F1296", "name": "심*", "rank": "G2", "salary": 63252201.80282588, "percentile": 73.0, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "보상불만형"}, {"id": "F1404", "name": "안*근", "rank": "G2", "salary": 64108916.464434244, "percentile": 76.3, "grade": "S", "perf": "고성과", "mol": "개인성장형", "sat": "보상불만형"}, {"id": "G0011", "name": "김*영", "rank": "G2", "salary": 63175881.80282588, "percentile": 72.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "전반불만형"}, {"id": "F1143", "name": "이*환", "rank": "G2", "salary": 65652410.22005106, "percentile": 81.6, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "F1212", "name": "이*동", "rank": "G2", "salary": 63023241.80282588, "percentile": 72.1, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "F1492", "name": "오**미", "rank": "G2", "salary": 64641450.50526587, "percentile": 78.2, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "E1067", "name": "손*덕", "rank": "G2", "salary": 65905987.24205616, "percentile": 82.4, "grade": "A", "perf": "고성과", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "F1233", "name": "조*현", "rank": "G2", "salary": 62908761.80282588, "percentile": 71.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "직급만족형"}, {"id": "F1256", "name": "김*현", "rank": "G2", "salary": 64927370.22005106, "percentile": 79.2, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "F6044", "name": "박*우", "rank": "G2", "salary": 62588857.0536952, "percentile": 70.4, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "F1247", "name": "박*동", "rank": "G2", "salary": 61878441.80282588, "percentile": 67.4, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "F1643", "name": "김*영", "rank": "G2", "salary": 63382170.50526587, "percentile": 73.6, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "전반불만형"}, {"id": "G3002", "name": "여*호", "rank": "G2", "salary": 63267690.50526587, "percentile": 73.1, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "G0012", "name": "석*혁", "rank": "G2", "salary": 61863817.0536952, "percentile": 67.3, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "G0013", "name": "강*원", "rank": "G2", "salary": 61863817.0536952, "percentile": 67.3, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "F4136", "name": "석*현", "rank": "G2", "salary": 62696244.6870434, "percentile": 70.8, "grade": "C", "perf": "저성과", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "G3028", "name": "김*주", "rank": "G2", "salary": 61215097.0536952, "percentile": 64.5, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "직급만족형"}, {"id": "F4080", "name": "김*동", "rank": "G2", "salary": 62199210.50526587, "percentile": 68.8, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "F8151", "name": "윤*웅", "rank": "G2", "salary": 63501907.24205616, "percentile": 74.0, "grade": "A", "perf": "고성과", "mol": "안주형", "sat": "직급만족형"}, {"id": "F1477", "name": "김*래", "rank": "G2", "salary": 62161050.50526587, "percentile": 68.6, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "F9012", "name": "제*규", "rank": "G2", "salary": 62798100.900061905, "percentile": 71.2, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "F1568", "name": "박*운", "rank": "G2", "salary": 62378340.900061905, "percentile": 69.5, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "G1054", "name": "이*범", "rank": "G2", "salary": 62370650.22005106, "percentile": 69.5, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "F8152", "name": "한*영", "rank": "G2", "salary": 62586067.24205616, "percentile": 70.4, "grade": "A", "perf": "고성과", "mol": "고몰입형", "sat": "보상불만형"}, {"id": "F4083", "name": "최*성", "rank": "G2", "salary": 62187540.900061905, "percentile": 68.7, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "F4137", "name": "이*원", "rank": "G2", "salary": 62204467.24205616, "percentile": 68.8, "grade": "A", "perf": "고성과", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "G3129", "name": "이*훈", "rank": "G2", "salary": 61841734.024317294, "percentile": 67.2, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "F8009", "name": "이*희", "rank": "G2", "salary": 57909801.80282588, "percentile": 49.1, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "F4135", "name": "김*훈", "rank": "G2", "salary": 58924941.76505262, "percentile": 54.0, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "전반불만형"}, {"id": "F8092", "name": "서*욱", "rank": "G2", "salary": 57322248.72201665, "percentile": 46.4, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "F4081", "name": "권*규", "rank": "G2", "salary": 58333380.900061905, "percentile": 51.2, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "F8005", "name": "고*성", "rank": "G2", "salary": 58104420.900061905, "percentile": 50.1, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "보상불만형"}, {"id": "F9024", "name": "황*훈", "rank": "G2", "salary": 55207592.97034319, "percentile": 36.6, "grade": "C", "perf": "저성과", "mol": "고몰입형", "sat": "전반불만형"}, {"id": "F1407", "name": "김*현", "rank": "G2", "salary": 57612133.920669705, "percentile": 47.7, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "안정온건형"}, {"id": "F4143", "name": "진*환", "rank": "G2", "salary": 58657627.42674903, "percentile": 52.7, "grade": "A", "perf": "고성과", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "F7037", "name": "김*아", "rank": "G2", "salary": 54635192.97034319, "percentile": 34.1, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "안정온건형"}, {"id": "F8154", "name": "강*익", "rank": "G2", "salary": 55556033.59421831, "percentile": 38.2, "grade": "A", "perf": "고성과", "mol": "저몰입형", "sat": "안정온건형"}, {"id": "G2052", "name": "김*대", "rank": "G2", "salary": 58237867.42674903, "percentile": 50.7, "grade": "A", "perf": "고성과", "mol": "개인성장형", "sat": "보상불만형"}, {"id": "F6039", "name": "박*훈", "rank": "G2", "salary": 55872141.76505262, "percentile": 39.6, "grade": "C", "perf": "저성과", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "G3061", "name": "조*용", "rank": "G2", "salary": 57338854.024317294, "percentile": 46.4, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "직급만족형"}, {"id": "F5074", "name": "김*현", "rank": "G2", "salary": 55852980.900061905, "percentile": 39.5, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "안정온건형"}, {"id": "G1002", "name": "서*찬", "rank": "G2", "salary": 56690134.024317294, "percentile": 43.4, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "직급만족형"}, {"id": "F5043", "name": "신*호", "rank": "G2", "salary": 56575654.024317294, "percentile": 42.9, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "G0027", "name": "정*영", "rank": "G2", "salary": 54402900.900061905, "percentile": 33.0, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "보상불만형"}, {"id": "G2022", "name": "진*규", "rank": "G2", "salary": 54820294.024317294, "percentile": 34.9, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "안정온건형"}, {"id": "G1003", "name": "문*원", "rank": "G1", "salary": 52000318.468607396, "percentile": 80.2, "grade": "A", "perf": "고성과", "mol": "안주형", "sat": "보상불만형"}, {"id": "G3105", "name": "김*용", "rank": "G1", "salary": 50664836.07870968, "percentile": 73.2, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3008", "name": "윤*수", "rank": "G1", "salary": 50315949.97861701, "percentile": 71.2, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "전반불만형"}, {"id": "G3045", "name": "이*규", "rank": "G1", "salary": 48969971.08735224, "percentile": 62.8, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G2071", "name": "정*원", "rank": "G1", "salary": 48457468.683870964, "percentile": 59.4, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G2002", "name": "곽*열", "rank": "G1", "salary": 46931068.683870964, "percentile": 49.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "전반불만형"}, {"id": "G2014", "name": "신*호", "rank": "G1", "salary": 46956603.967140846, "percentile": 49.2, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "전반불만형"}, {"id": "G1040", "name": "박*무", "rank": "G1", "salary": 46956603.967140846, "percentile": 49.2, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "전반불만형"}, {"id": "G2001", "name": "권*찬", "rank": "G1", "salary": 47003386.16549789, "percentile": 49.5, "grade": "A", "perf": "고성과", "mol": "저몰입형", "sat": "안정온건형"}, {"id": "G1051", "name": "김*영", "rank": "G1", "salary": 46269723.967140846, "percentile": 44.5, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "직급만족형"}, {"id": "G1028", "name": "강*민", "rank": "G1", "salary": 47769353.53109071, "percentile": 54.8, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "직급만족형"}, {"id": "G3025", "name": "노*연", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "직급만족형"}, {"id": "G3055", "name": "김*민", "rank": "G1", "salary": 46049386.16549789, "percentile": 43.0, "grade": "A", "perf": "고성과", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3044", "name": "박*재", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3057", "name": "이*정", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3039", "name": "김*현", "rank": "G1", "salary": 47502233.53109071, "percentile": 53.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3043", "name": "서*성", "rank": "G1", "salary": 47502233.53109071, "percentile": 53.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "G2033", "name": "서*우", "rank": "G1", "salary": 47258706.17798164, "percentile": 51.3, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "안정온건형"}, {"id": "G2047", "name": "강*영", "rank": "G1", "salary": 46560701.64171985, "percentile": 46.5, "grade": "A", "perf": "고성과", "mol": "고몰입형", "sat": "보상불만형"}, {"id": "G2062", "name": "이*백", "rank": "G1", "salary": 46347309.97861701, "percentile": 45.1, "grade": "C", "perf": "저성과", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3054", "name": "김*환", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G2034", "name": "이*운", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "개인성장형", "sat": "안정온건형"}, {"id": "G2048", "name": "류*민", "rank": "G1", "salary": 46347309.97861701, "percentile": 45.1, "grade": "C", "perf": "저성과", "mol": "저몰입형", "sat": "안정온건형"}, {"id": "G2058", "name": "이*름", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "G2073", "name": "엄*현", "rank": "G1", "salary": 46347309.97861701, "percentile": 45.1, "grade": "C", "perf": "저성과", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "G2075", "name": "전*빈", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G2093", "name": "김*준", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3023", "name": "윤*하", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "보상불만형"}, {"id": "G3041", "name": "강*성", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "전반불만형"}, {"id": "G3063", "name": "이*규", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "G3064", "name": "정*민", "rank": "G1", "salary": 46489571.08735224, "percentile": 46.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "보상불만형"}, {"id": "G3021", "name": "한*선", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "고몰입형", "sat": "전반불만형"}, {"id": "G3022", "name": "박*연", "rank": "G1", "salary": 45977068.683870964, "percentile": 42.6, "grade": "B", "perf": "보통", "mol": "저몰입형", "sat": "직급만족형"}, {"id": "G3037", "name": "최*우", "rank": "G1", "salary": 45977068.683870964, "percentile": 42.6, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3040", "name": "박*후", "rank": "G1", "salary": 46002603.967140846, "percentile": 42.7, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "안정온건형"}, {"id": "G3123", "name": "박*준", "rank": "G1", "salary": 47502233.53109071, "percentile": 53.0, "grade": "B", "perf": "보통", "mol": "안주형", "sat": "전반불만형"}], "mol_trans": {"low": {"고몰입형": {"고몰입형": 0.25, "안주형": 0.25, "개인성장형": 0.25, "저몰입형": 0.25}, "안주형": {"고몰입형": 0.23076923076923078, "안주형": 0.23076923076923078, "개인성장형": 0.23076923076923078, "저몰입형": 0.3076923076923077}, "개인성장형": {"고몰입형": 0.3076923076923077, "안주형": 0.23076923076923078, "개인성장형": 0.3076923076923077, "저몰입형": 0.15384615384615385}, "저몰입형": {"고몰입형": 0.2, "안주형": 0.13333333333333333, "개인성장형": 0.13333333333333333, "저몰입형": 0.5333333333333333}}, "mid": {"고몰입형": {"고몰입형": 0.45011941943781003, "안주형": 0.25721109682160576, "개인성장형": 0.12860554841080288, "저몰입형": 0.1640639353297814}, "안주형": {"고몰입형": 0.31070093513962077, "안주형": 0.25065420540377426, "개인성장형": 0.25065420540377426, "저몰입형": 0.1879906540528307}, "개인성장형": {"고몰입형": 0.41890909090909095, "안주형": 0.2545454545454546, "개인성장형": 0.2545454545454546, "저몰입형": 0.07200000000000001}, "저몰입형": {"고몰입형": 0.27997632423432456, "안주형": 0.2541260032114148, "개인성장형": 0.1270630016057074, "저몰입형": 0.33883467094855313}}, "high": {"고몰입형": {"고몰입형": 0.526575606921055, "안주형": 0.21528610339233098, "개인성장형": 0.21528610339233098, "저몰입형": 0.04285218629428303}, "안주형": {"고몰입형": 0.4220767511972228, "안주형": 0.18794766274685495, "개인성장형": 0.2819214941202824, "저몰입형": 0.10805409193563985}, "개인성장형": {"고몰입형": 0.560684596567761, "안주형": 0.20965770170803025, "개인성장형": 0.20965770170803025, "저몰입형": 0.020000000016178385}, "저몰입형": {"고몰입형": 0.36999250540211076, "안주형": 0.18551569665168, "개인성장형": 0.18551569665168, "저몰입형": 0.2589761012945293}}}, "sat_trans": {"low": {"안정온건형": {"안정온건형": 0.3333333333333333, "보상불만형": 0.16666666666666666, "직급만족형": 0.25, "전반불만형": 0.25}, "보상불만형": {"안정온건형": 0.31250000000000006, "보상불만형": 0.25, "직급만족형": 0.25, "전반불만형": 0.1875}, "직급만족형": {"안정온건형": 0.2142857142857143, "보상불만형": 0.2142857142857143, "직급만족형": 0.2142857142857143, "전반불만형": 0.3571428571428571}, "전반불만형": {"안정온건형": 0.36363636363636365, "보상불만형": 0.18181818181818182, "직급만족형": 0.18181818181818182, "전반불만형": 0.2727272727272727}}, "mid": {"안정온건형": {"안정온건형": 0.44877883310719136, "보상불만형": 0.22048846675712347, "직급만족형": 0.16536635006784262, "전반불만형": 0.16536635006784262}, "보상불만형": {"안정온건형": 0.39194799622702703, "보상불만형": 0.2063524899682035, "직급만족형": 0.3301639839491256, "전반불만형": 0.07153552985564385}, "직급만족형": {"안정온건형": 0.29422981184025443, "보상불만형": 0.21716005789530632, "직급만족형": 0.2714500723691329, "전반불만형": 0.21716005789530632}, "전반불만형": {"안정온건형": 0.44251725573501366, "보상불만형": 0.18454138389752783, "직급만족형": 0.23067672987190985, "전반불만형": 0.14226463049554874}}, "high": {"안정온건형": {"안정온건형": 0.5247742112485175, "보상불만형": 0.16169380369055628, "직급만족형": 0.2694896728175938, "전반불만형": 0.04404231224333247}, "보상불만형": {"안정온건형": 0.4711669243432068, "보상불만형": 0.2907940012226402, "직급만족형": 0.21809550091698016, "전반불만형": 0.01994357351717277}, "직급만족형": {"안정온건형": 0.3830755989872891, "보상불만형": 0.2878126690755139, "직급만족형": 0.19187511271700927, "전반불만형": 0.1372366192201877}, "전반불만형": {"안정온건형": 0.5215222128254736, "보상불만형": 0.27740414509770717, "직급만족형": 0.13870207254885358, "전반불만형": 0.06237156952796567}}}, "q33": 0.07247184095860566, "q66": 0.09525599433195361, "market": {"G1": [45220000, 47070000, 53070000], "G2": [56380000, 58090000, 67720000], "G3": [71450000, 74650000, 86190000]}, "mol_rank_dist": {"고몰입형": {"G3": 3, "G2": 14, "G1": 4}, "안주형": {"G3": 11, "G2": 16, "G1": 24}, "개인성장형": {"G3": 3, "G2": 6, "G1": 2}, "저몰입형": {"G3": 5, "G2": 18, "G1": 6}}, "sat_rank_dist": {"안정온건형": {"G3": 8, "G2": 16, "G1": 17}, "보상불만형": {"G3": 4, "G2": 16, "G1": 6}, "직급만족형": {"G3": 4, "G2": 12, "G1": 6}, "전반불만형": {"G3": 6, "G2": 10, "G1": 7}}};
+
+const MOL_LIST = ['고몰입형','안주형','개인성장형','저몰입형'];
+const SAT_LIST = ['안정온건형','보상불만형','직급만족형','전반불만형'];
+const PERF_LIST = ['고성과','보통','저성과'];
+const RANK_LIST = ['G3','G2','G1'];
+const RANK_ORDER = {'G1':1,'G2':2,'G3':3};
+
+let chartRank, chartPctile, chartMol, chartSat;
+let currentSort = 'rate_desc';
+let computedEmployees = [];
+let currentScenario = null;
+
+// AI 시나리오 정의
+const AI_SCENARIOS = {
+    conservative: {
+        name: '시장경쟁력 확보형',
+        badge: 'MARKET FIT',
+        color: '#3b82f6',
+        budget: 3.5, policy: 50,
+        grades: {S:130,A:115,B:100,C:85},
+        mol: {'고몰입형':1.1,'안주형':1.0,'개인성장형':0.95,'저몰입형':0.9},
+        insights: [
+            {color:'#3b82f6', text:'<strong>시장 정상화 우선:</strong> 전 직급 시장 50%ile 정렬 목표. G3 하위 31.8%(7명)의 보상 경쟁력을 즉각 보정하여 고경력 인력 이탈 리스크 차단.'},
+            {color:'#10b981', text:'<strong>G1 집단 상향:</strong> G1 36명의 88.9%가 40~60%ile에 밀집. 균등 인상으로 집단 기준선을 50%ile→55%ile 이상으로 끌어올리는 전략.'},
+            {color:'#f59e0b', text:'<strong>완만한 차등:</strong> 73.2%가 B등급인 구조에서 급격한 성과 차등은 형평성 논란 유발. 등급 가중치 1.5배 이내로 조직 안정 유지.'},
+            {color:'#ef4444', text:'<strong>한계:</strong> 몰입유형 가중치가 균등에 가까워 저몰입→고몰입 전환 유도력 미약. 전반불만형 36.6%에 대한 근본 해결은 별도 조직 시책 필요.'},
+        ]
+    },
+    balanced: {
+        name: '몰입전환 최적형',
+        badge: 'RECOMMENDED',
+        color: '#10b981',
+        budget: 3.5, policy: 50,
+        grades: {S:140,A:120,B:100,C:70},
+        mol: {'고몰입형':1.4,'안주형':0.9,'개인성장형':0.8,'저몰입형':0.7},
+        insights: [
+            {color:'#10b981', text:'<strong>몰입 전환 설계:</strong> 전이확률 분석 결과, 인상률 상위 구간(9.5%+)에서 저몰입→고몰입 전환율 33.3%. 고몰입형 가중치 1.4로 상위 인상 구간 진입을 유도하여 유형 전환 극대화.'},
+            {color:'#3b82f6', text:'<strong>개인성장형 전환 유도:</strong> 개인성장형은 개인 성장감은 높으나 조직 일체감이 낮은 이탈 예비군. 가중치 0.8로 고몰입형(1.4)과 명확히 차등화하여, 조직 몰입 전환 시 보상 상향의 인센티브를 설계.'},
+            {color:'#f59e0b', text:'<strong>보상불만형 타겟:</strong> G2에서 보상불만형 32%가 집중. B등급 기본 인상 + 시장 50%ile 보정으로 보상 적정성 체감 개선 기대.'},
+            {color:'#8b5cf6', text:'<strong>저성과 메시지:</strong> C등급 70%로 낮추되 동결은 아닌 수준. 저몰입×저성과는 복합 감소(0.7×0.7=0.49)로 명확한 개선 요구 신호 전달.'},
+        ]
+    },
+    aggressive: {
+        name: '핵심인력 집중형',
+        badge: 'AGGRESSIVE',
+        color: '#f59e0b',
+        budget: 3.5, policy: 65,
+        grades: {S:180,A:140,B:100,C:50},
+        mol: {'고몰입형':1.8,'안주형':0.8,'개인성장형':0.7,'저몰입형':0.5},
+        insights: [
+            {color:'#f59e0b', text:'<strong>핵심인력 집중 투자:</strong> 고몰입형(45.5%) × 고성과(S/A) 16명에 재원 집중. 65%ile 정책선으로 이들의 시장 보상을 상위 1/3에 포지셔닝.'},
+            {color:'#10b981', text:'<strong>G3 시장 리더십:</strong> 고경력 G3 중 하위 7명을 50%ile 이상으로 끌어올리고, 고성과 G3는 65%ile 이상 진입. 외부 스카우트 방어.'},
+            {color:'#ef4444', text:'<strong>저몰입·개인성장형 경고:</strong> 개인성장형(0.7)·저몰입형(0.5) + C등급 50% = 실질 가중치 0.25~0.35. 조직 몰입 없는 유형에 강한 변화 요구 메시지 전달.'},
+            {color:'#8b5cf6', text:'<strong>리스크:</strong> 인상률 최대/최소 배율 5배 이상으로 확대. 전반불만형(36.6%)의 불만 심화 가능. 특히 B등급 저몰입형(8명)의 집단 이탈 리스크 모니터링 필요.'},
+        ]
+    }
+};
+
+function normCDF(x) {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x<0?-1:1; x = Math.abs(x)/Math.sqrt(2);
+    const t = 1.0/(1.0+p*x);
+    return 0.5*(1.0+sign*(1.0-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x)));
+}
+
+function calcPctile(sal, rank) {
+    const m = DATA.market[rank]; if (!m) return 50;
+    return normCDF((sal-m[1])/((m[2]-m[0])/(2*0.6745)))*100;
+}
+
+function getParams() {
+    const gradeWeights = {
+        S: parseFloat(document.getElementById('g_S').value)/100,
+        A: parseFloat(document.getElementById('g_A').value)/100,
+        B: parseFloat(document.getElementById('g_B').value)/100,
+        C: parseFloat(document.getElementById('g_C').value)/100,
+    };
+    return {
+        budget: parseFloat(document.getElementById('s_budget').value)/100,
+        gradeWeights,
+        mol: {
+            '고몰입형': parseFloat(document.getElementById('s_mol0').value),
+            '안주형': parseFloat(document.getElementById('s_mol1').value),
+            '개인성장형': parseFloat(document.getElementById('s_mol2').value),
+            '저몰입형': parseFloat(document.getElementById('s_mol3').value),
+        },
+        targetPctile: parseFloat(document.getElementById('s_policy').value),
+    };
+}
+
+function computeWith(params) {
+    const totalSalary = DATA.employees.reduce((s,e)=>s+e.salary, 0);
+    const budget = totalSalary * params.budget;
+    // 평가등급 우선: 고성과일수록 몰입 페널티 희석
+    // dampRatio: S=0.8, A=0.6, B=0, C=0 (고성과일수록 페널티의 80%/60% 제거)
+    const dampRatio = {S:0.8, A:0.6, B:0, C:0};
+    let employees = DATA.employees.map(e => {
+        let mol_w = params.mol[e.mol] || 1;
+        const grade_w = params.gradeWeights[e.grade] || 1;
+        // 몰입 페널티(mol_w < 1)를 평가등급에 따라 희석
+        if (mol_w < 1.0) {
+            const damp = dampRatio[e.grade] || 0;
+            mol_w = mol_w + (1.0 - mol_w) * damp;
+        }
+        const gap = params.targetPctile - e.percentile;
+        const pol_w = 1.0 + gap / 100;
+        const total_w = mol_w * grade_w * pol_w;
+        return { ...e, mol_w, grade_w, pol_w, total_w, weighted_sal: e.salary * total_w };
+    });
+    const totalWeighted = employees.reduce((s,e)=>s+e.weighted_sal, 0);
+    employees = employees.map(e => {
+        const raise_amt = budget * (e.weighted_sal / totalWeighted);
+        const raise_rate = raise_amt / e.salary * 100;
+        const new_salary = e.salary + raise_amt;
+        const new_pctile = calcPctile(new_salary, e.rank);
+        return { ...e, raise_amt, raise_rate, new_salary, new_pctile };
+    });
+    return { employees, totalSalary, budget };
+}
+
+function compute() {
+    const P = getParams();
+    const result = computeWith(P);
+    computedEmployees = result.employees;
+    return result;
+}
+
+function predictTypes(employees) {
+    const mol_pred = {}, sat_pred = {};
+    MOL_LIST.forEach(m => mol_pred[m]=0);
+    SAT_LIST.forEach(s => sat_pred[s]=0);
+    // 시나리오 자체의 인상률 분포에서 분위 경계를 산출하되,
+    // 분산(차등 정도)에 따라 tier 비중을 차별화
+    const rates = employees.map(e=>e.raise_rate).sort((a,b)=>a-b);
+    const n = rates.length;
+    const avgRate = rates.reduce((s,r)=>s+r,0)/n;
+    // 시나리오 내 표준편차 → 차등이 클수록 high/low 비중 확대
+    const variance = rates.reduce((s,r)=>s+(r-avgRate)**2,0)/n;
+    const sd = Math.sqrt(variance);
+    // 차등 계수: sd가 0이면 모두 mid, sd가 클수록 high/low 극단 확대
+    // 기준 sd=1.0 (보통 수준), sd=0이면 diff=0, sd=2이면 diff~0.67
+    const diffFactor = Math.min(0.8, sd / (sd + 1.0));
+    employees.forEach(e => {
+        const r = e.raise_rate;
+        // 평균 대비 위치: z = (r - avg) / sd
+        const z = sd > 0.01 ? (r - avgRate) / sd : 0;
+        // z를 0~1 범위로 변환 (sigmoid-like)
+        // z=-2 → p≈0.05, z=0 → p=0.5, z=+2 → p≈0.95
+        const p = 1 / (1 + Math.exp(-z * 1.2));
+        // diffFactor가 클수록(차등이 클수록) high/low 비중 확대
+        // diffFactor가 작으면 모두 mid에 집중
+        // p=0(최하위): wLow = 0.5+0.35*diff, wHigh = 0.05
+        // p=0.5(평균): wLow≈wHigh≈0.2, wMid≈0.6
+        // p=1(최상위): wHigh = 0.5+0.35*diff, wLow = 0.05
+        const wHigh = 0.05 + (0.5 + 0.35*diffFactor) * p * diffFactor + 0.20 * p * (1-diffFactor);
+        const wLow = 0.05 + (0.5 + 0.35*diffFactor) * (1-p) * diffFactor + 0.20 * (1-p) * (1-diffFactor);
+        const wMid = Math.max(0.05, 1 - wHigh - wLow);
+        const mtL=DATA.mol_trans.low[e.mol], mtM=DATA.mol_trans.mid[e.mol], mtH=DATA.mol_trans.high[e.mol];
+        if(mtL&&mtM&&mtH) MOL_LIST.forEach(m => mol_pred[m]+=wLow*(mtL[m]||0)+wMid*(mtM[m]||0)+wHigh*(mtH[m]||0));
+        const stL=DATA.sat_trans.low[e.sat], stM=DATA.sat_trans.mid[e.sat], stH=DATA.sat_trans.high[e.sat];
+        if(stL&&stM&&stH) SAT_LIST.forEach(s => sat_pred[s]+=wLow*(stL[s]||0)+wMid*(stM[s]||0)+wHigh*(stH[s]||0));
+    });
+    return { mol_pred, sat_pred };
+}
+
+function fmt(n) { return n.toLocaleString('ko-KR'); }
+
+function heatColor(val, min, max) {
+    const ratio = Math.max(0, Math.min(1, (val-min)/(max-min||1)));
+    const r = ratio<0.5 ? 220 : Math.round(220 - (ratio-0.5)*2*180);
+    const g = ratio<0.5 ? Math.round(60 + ratio*2*160) : 220;
+    return `rgb(${r},${g},60)`;
+}
+
+// === 메인 탭 전환 ===
+let aiInitDone = false;
+function switchMainTab(tab, btn) {
+    document.querySelectorAll('.main-tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.main-tab-content').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('mtab_'+tab).classList.add('active');
+
+    // AI 탭이 활성화될 때 차트 렌더링 (display:none canvas 문제 방지)
+    if (tab==='ai') {
+        setTimeout(function(){
+            const activeKey = currentScenario || 'balanced';
+            if (!aiInitDone) {
+                showAIInsights(activeKey);
+                aiInitDone = true;
+            }
+            renderExecutiveSummary(activeKey);
+            renderTierStrategies(activeKey);
+            renderSpecialTier(activeKey);
+            updateDistCharts(activeKey);
+        }, 50);
+    }
+}
+
+// === 유형 서브탭 전환 ===
+function switchTypeSub(sub, btn) {
+    document.querySelectorAll('.type-sub-tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.type-sub-content').forEach(c=>c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tsub_'+sub).classList.add('active');
+}
+
+// === AI 시나리오 적용 ===
+function applyAI(key) {
+    const sc = AI_SCENARIOS[key];
+    currentScenario = key;
+
+    // 카드 선택 상태
+    document.querySelectorAll('.ai-card').forEach(c=>c.classList.remove('selected'));
+    document.getElementById('ai_card_'+key).classList.add('selected');
+
+    // 파라미터 적용
+    document.getElementById('s_budget').value = sc.budget;
+    document.getElementById('s_policy').value = sc.policy;
+    document.getElementById('g_S').value = sc.grades.S;
+    document.getElementById('g_A').value = sc.grades.A;
+    document.getElementById('g_B').value = sc.grades.B;
+    document.getElementById('g_C').value = sc.grades.C;
+    document.getElementById('s_mol0').value = sc.mol['고몰입형'];
+    document.getElementById('s_mol1').value = sc.mol['안주형'];
+    document.getElementById('s_mol2').value = sc.mol['개인성장형'];
+    document.getElementById('s_mol3').value = sc.mol['저몰입형'];
+
+    // 직접 조정 탭 모드 배지 업데이트
+    const badge = document.getElementById('current_mode_badge');
+    badge.textContent = '현재 적용: ' + sc.name;
+    badge.style.background = `rgba(${sc.color==='#3b82f6'?'59,130,246':sc.color==='#10b981'?'16,185,129':'245,158,11'},0.2)`;
+    badge.style.color = sc.color;
+
+    // 시뮬레이션 결과 계산
+    updateAll();
+
+    // 기대효과 패널 표시 (선택 시나리오 인사이트만)
+    showAIInsights(key);
+
+    // Executive Summary 업데이트
+    renderExecutiveSummary(key);
+
+    // AI 탭이 활성화된 상태에서만 canvas 기반 렌더링
+    const aiTabActive = document.getElementById('mtab_ai').classList.contains('active');
+    if (aiTabActive) {
+        setTimeout(function(){
+            renderTierStrategies(key);
+            renderSpecialTier(key);
+            updateDistCharts(key);
+        }, 30);
+    }
+}
+
+// === 3시나리오 분석 결과 캐시 ===
+function analyzeScenario(key) {
+    const sc = AI_SCENARIOS[key];
+    const params = {
+        budget: sc.budget/100,
+        gradeWeights: {S:sc.grades.S/100, A:sc.grades.A/100, B:sc.grades.B/100, C:sc.grades.C/100},
+        mol: sc.mol,
+        targetPctile: sc.policy,
+    };
+    const {employees} = computeWith(params);
+    const predictions = predictTypes(employees);
+    const rates = employees.map(e=>e.raise_rate);
+    const uniformRate = params.budget * 100;
+
+    // 그룹별 인상률
+    const grpRate = (molF, perfF) => {
+        const sub = employees.filter(e => (!molF || e.mol===molF) && (!perfF || e.perf===perfF));
+        return sub.length ? sub.reduce((s,e)=>s+e.raise_rate,0)/sub.length : 0;
+    };
+
+    // Percentile 변화
+    const pctBefore = employees.reduce((s,e)=>s+e.percentile,0)/employees.length;
+    const pctAfter = employees.reduce((s,e)=>s+e.new_pctile,0)/employees.length;
+
+    // 고몰입 고성과 시장 대비
+    const highCore = employees.filter(e=>e.mol==='고몰입형'&&e.perf==='고성과');
+    const highCorePctAfter = highCore.length ? highCore.reduce((s,e)=>s+e.new_pctile,0)/highCore.length : 0;
+
+    // 안주형 분석
+    const tenure = employees.filter(e=>e.mol==='안주형');
+    const tenureRate = tenure.length ? tenure.reduce((s,e)=>s+e.raise_rate,0)/tenure.length : 0;
+    const tenurePctAfter = tenure.length ? tenure.reduce((s,e)=>s+e.new_pctile,0)/tenure.length : 0;
+
+    return {
+        key, sc, employees, predictions, uniformRate,
+        avgRate: rates.reduce((a,b)=>a+b,0)/rates.length,
+        maxRate: Math.max(...rates),
+        minRate: Math.min(...rates),
+        highCoreRate: grpRate('고몰입형','고성과'),
+        lowCoreRate: grpRate('저몰입형','저성과'),
+        tenureRate,
+        pctBefore, pctAfter, pctDelta: pctAfter - pctBefore,
+        highCorePctAfter,
+        tenurePctAfter,
+        molNow: Object.fromEntries(MOL_LIST.map(m=>[m, employees.filter(e=>e.mol===m).length])),
+        molPred: predictions.mol_pred,
+        satNow: Object.fromEntries(SAT_LIST.map(s=>[s, employees.filter(e=>e.sat===s).length])),
+        satPred: predictions.sat_pred,
+    };
+}
+
+function renderExecutiveSummary(key) {
+    const r = analyzeScenario(key);
+    const sc = r.sc;
+    const total = r.employees.length;
+
+    // 1) 핵심인력 보상 경쟁력: 고몰입+고성과 시장 %ile 변화
+    const highCore = r.employees.filter(e=>e.mol==='고몰입형'&&e.perf==='고성과');
+    const hcPctBefore = highCore.length ? highCore.reduce((s,e)=>s+e.percentile,0)/highCore.length : 0;
+    const hcPctAfter = r.highCorePctAfter;
+    const hcDelta = hcPctAfter - hcPctBefore;
+
+    // 2) 재원 투자 효과: 고몰입형 증감 예측
+    const molHighNow = r.molNow['고몰입형'] || 0;
+    const molHighPred = r.molPred['고몰입형'] || 0;
+    const molHighDelta = molHighPred - molHighNow;
+
+    // 3) 리스크 지표: 저몰입형 증감 + 특별관리 대상 수
+    const molLowNow = r.molNow['저몰입형'] || 0;
+    const molLowPred = r.molPred['저몰입형'] || 0;
+    const molLowDelta = molLowPred - molLowNow;
+    const specialCnt = r.employees.filter(e=>e.mol==='저몰입형'&&e.perf==='고성과').length;
+
+    // 4) 배분 차등도: max/min 배율
+    const diffRatio = r.minRate > 0 ? (r.maxRate / r.minRate) : 0;
+
+    function deltaText(v, unit, invert) {
+        const pos = invert ? v < 0 : v > 0;
+        const color = pos ? '#10b981' : (v === 0 ? '#888' : '#ef4444');
+        const arrow = v > 0 ? '▲' : (v < 0 ? '▼' : '—');
+        return '<span class="ec-delta" style="color:'+color+'">'+arrow+' '+(v>0?'+':'')+v.toFixed(1)+unit+'</span>';
+    }
+
+    var cardsHtml = '';
+    // Card 1: 핵심인력 시장 경쟁력
+    cardsHtml += '<div class="exec-card" style="border-top:3px solid #3b82f6">';
+    cardsHtml += '<div class="ec-label">핵심인력 시장 경쟁력</div>';
+    cardsHtml += '<div class="ec-value" style="color:#3b82f6">'+hcPctAfter.toFixed(0)+'<span style="font-size:13px">%ile</span></div>';
+    cardsHtml += deltaText(hcDelta, '%p', false);
+    cardsHtml += '<div class="ec-sub">고몰입·고성과 '+highCore.length+'명<br>시장 대비 포지셔닝</div>';
+    cardsHtml += '</div>';
+
+    // Card 2: 고몰입 인원 변화 예측
+    cardsHtml += '<div class="exec-card" style="border-top:3px solid #10b981">';
+    cardsHtml += '<div class="ec-label">고몰입 인원 예측</div>';
+    cardsHtml += '<div class="ec-value" style="color:#10b981">'+molHighPred.toFixed(0)+'<span style="font-size:13px">명</span></div>';
+    cardsHtml += deltaText(molHighDelta, '명', false);
+    cardsHtml += '<div class="ec-sub">현재 '+molHighNow+'명 대비<br>25년 전환확률 기반 예측</div>';
+    cardsHtml += '</div>';
+
+    // Card 3: 리스크 지표
+    cardsHtml += '<div class="exec-card" style="border-top:3px solid #ef4444">';
+    cardsHtml += '<div class="ec-label">이탈 리스크</div>';
+    cardsHtml += '<div class="ec-value" style="color:#ef4444">'+molLowPred.toFixed(0)+'<span style="font-size:13px">명</span></div>';
+    cardsHtml += deltaText(molLowDelta, '명', true);
+    cardsHtml += '<div class="ec-sub">저몰입 예측 인원<br>특별관리 대상 '+specialCnt+'명</div>';
+    cardsHtml += '</div>';
+
+    // Card 4: 배분 차등도
+    cardsHtml += '<div class="exec-card" style="border-top:3px solid #f59e0b">';
+    cardsHtml += '<div class="ec-label">배분 차등도</div>';
+    cardsHtml += '<div class="ec-value" style="color:#f59e0b">'+(diffRatio > 0 ? diffRatio.toFixed(1) : '-')+'<span style="font-size:13px">배</span></div>';
+    cardsHtml += '<div class="ec-sub">최고 '+r.maxRate.toFixed(1)+'% / 최저 '+r.minRate.toFixed(1)+'%<br>재원 '+sc.budget+'% 내 차등 배분</div>';
+    cardsHtml += '</div>';
+
+    document.getElementById('exec_cards').innerHTML = cardsHtml;
+
+    // Verdict
+    var verdict = '';
+    verdict += '<strong>' + sc.name + '</strong> 적용 시, ';
+    verdict += '핵심인력(고몰입·고성과 '+highCore.length+'명)의 시장 경쟁력이 <strong>'+hcPctBefore.toFixed(0)+'%ile → '+hcPctAfter.toFixed(0)+'%ile</strong>로 ';
+    verdict += (hcDelta >= 0 ? '상승' : '하락') + '하며, ';
+    verdict += '고몰입 인원은 <strong>'+(molHighDelta>=0?'+':'')+molHighDelta.toFixed(1)+'명</strong> 변화가 예측됩니다. ';
+    if (molLowDelta < 0) {
+        verdict += '저몰입 인원은 <strong>'+molLowDelta.toFixed(1)+'명</strong> 감소하여 이탈 리스크가 완화됩니다. ';
+    } else if (molLowDelta > 0) {
+        verdict += '저몰입 인원이 <strong>+'+molLowDelta.toFixed(1)+'명</strong> 증가할 수 있어 추가 관리가 필요합니다. ';
+    }
+    if (specialCnt > 0) {
+        verdict += '특별관리 대상(저몰입·고성과) <strong>'+specialCnt+'명</strong>에 대한 긴급 리텐션 조치가 권고됩니다.';
+    }
+
+    document.getElementById('exec_verdict').innerHTML = verdict;
+}
+
+let chartAiMolDist = null, chartAiSatDist = null;
+
+function updateDistCharts(key) {
+    const r = analyzeScenario(key);
+    const sc = AI_SCENARIOS[key];
+    const scColor = sc.color;
+    const scName = sc.name;
+
+    // 몰입유형 분포 변화 차트
+    const molLabelsShort = MOL_LIST.map(m=>m.length>4?m.substring(0,4)+'..':m);
+    const molNow = MOL_LIST.map(m=>r.molNow[m]);
+    const molPred = MOL_LIST.map(m=>(r.molPred[m]||0));
+    const molDelta = MOL_LIST.map((_,i)=>molPred[i]-molNow[i]);
+
+    if (chartAiMolDist) chartAiMolDist.destroy();
+    chartAiMolDist = new Chart(document.getElementById('chartAiMolDist'), {
+        type:'bar',
+        data:{ labels:molLabelsShort, datasets:[
+            {label:'24년(현재)', data:molNow, backgroundColor:['rgba(16,185,129,0.3)','rgba(59,130,246,0.3)','rgba(245,158,11,0.3)','rgba(239,68,68,0.3)'], borderRadius:4, borderWidth:1, borderColor:['#10b981','#3b82f6','#f59e0b','#ef4444']},
+            {label:'25년(예측)', data:molPred, backgroundColor:['rgba(16,185,129,0.7)','rgba(59,130,246,0.7)','rgba(245,158,11,0.7)','rgba(239,68,68,0.7)'], borderRadius:4},
+        ]},
+        options:{
+            responsive:true,
+            plugins:{
+                legend:{labels:{font:{size:10}}},
+                tooltip:{callbacks:{afterBody:function(items){
+                    const i = items[0].dataIndex;
+                    const d = molDelta[i];
+                    return (d>=0?'+':'')+d.toFixed(1)+'명 변화';
+                }}}
+            },
+            scales:{y:{beginAtZero:true, title:{display:true,text:'인원(명)',font:{size:10}}}, x:{grid:{display:false}}}
+        }
+    });
+
+    // 만족유형 분포 변화 차트
+    const satLabelsShort = SAT_LIST.map(s=>s.length>5?s.substring(0,5)+'..':s);
+    const satNow = SAT_LIST.map(s=>r.satNow[s]);
+    const satPred = SAT_LIST.map(s=>(r.satPred[s]||0));
+    const satDelta = SAT_LIST.map((_,i)=>satPred[i]-satNow[i]);
+
+    const satBgLight = ['rgba(139,92,246,0.3)','rgba(20,184,166,0.3)','rgba(16,185,129,0.3)','rgba(239,68,68,0.3)'];
+    const satBgDark = ['rgba(139,92,246,0.7)','rgba(20,184,166,0.7)','rgba(16,185,129,0.7)','rgba(239,68,68,0.7)'];
+    const satBorder = ['#8b5cf6','#14b8a6','#10b981','#ef4444'];
+
+    if (chartAiSatDist) chartAiSatDist.destroy();
+    chartAiSatDist = new Chart(document.getElementById('chartAiSatDist'), {
+        type:'bar',
+        data:{ labels:satLabelsShort, datasets:[
+            {label:'24년(현재)', data:satNow, backgroundColor:satBgLight, borderRadius:4, borderWidth:1, borderColor:satBorder},
+            {label:'25년(예측)', data:satPred, backgroundColor:satBgDark, borderRadius:4},
+        ]},
+        options:{
+            responsive:true,
+            plugins:{
+                legend:{labels:{font:{size:10}}},
+                tooltip:{callbacks:{afterBody:function(items){
+                    const i = items[0].dataIndex;
+                    const d = satDelta[i];
+                    return (d>=0?'+':'')+d.toFixed(1)+'명 변화';
+                }}}
+            },
+            scales:{y:{beginAtZero:true, title:{display:true,text:'인원(명)',font:{size:10}}}, x:{grid:{display:false}}}
+        }
+    });
+}
+
+function showAIInsights(key) {
+    const sc = AI_SCENARIOS[key];
+    const r = analyzeScenario(key);
+
+    document.getElementById('ai_effects_title').innerHTML =
+        `전략적 인사이트 — <span style="color:${sc.color}">${sc.name}</span>`;
+
+    // 기본 인사이트 + 동적 분석 인사이트 추가
+    const dynamicInsights = [];
+
+    // 핵심인재 리텐션 분석
+    const highMolDelta = (r.molPred['고몰입형']||0) - r.molNow['고몰입형'];
+    if (highMolDelta > 0) {
+        dynamicInsights.push({color:'#10b981', text:`<strong>핵심인재 리텐션:</strong> 고몰입형이 현재 ${r.molNow['고몰입형']}명 → 예측 ${(r.molPred['고몰입형']||0).toFixed(1)}명으로 <strong>+${highMolDelta.toFixed(1)}명 증가</strong> 전망. 핵심인력 시장 Percentile ${r.highCorePctAfter.toFixed(1)}%ile로 외부 이직 유인 감소 기대.`});
+    } else {
+        dynamicInsights.push({color:'#ef4444', text:`<strong>핵심인재 리텐션 주의:</strong> 고몰입형이 현재 ${r.molNow['고몰입형']}명 → 예측 ${(r.molPred['고몰입형']||0).toFixed(1)}명으로 <strong>${highMolDelta.toFixed(1)}명 감소</strong> 전망. 보상 차등 강화 또는 비금전적 리텐션 방안 병행 필요.`});
+    }
+
+    // 안주형 관리
+    const tenureDelta = (r.molPred['안주형']||0) - r.molNow['안주형'];
+    const tenureToHigh = DATA.mol_trans.high?.['안주형']?.['고몰입형'] || 0;
+    dynamicInsights.push({color:'#3b82f6', text:`<strong>안주형 전환 관리:</strong> 안주형 ${r.molNow['안주형']}명에게 평균 ${r.tenureRate.toFixed(1)}% 인상 적용. 25년 예측 ${(r.molPred['안주형']||0).toFixed(1)}명(${tenureDelta>=0?'+':''}${tenureDelta.toFixed(1)}). 상위 인상 구간 시 고몰입 전환율 ${(tenureToHigh*100).toFixed(0)}% — <strong>성장 기회 제공으로 전환 가속</strong> 가능.`});
+
+    // 저몰입형 경고
+    const lowMolDelta = (r.molPred['저몰입형']||0) - r.molNow['저몰입형'];
+    if (lowMolDelta > 0) {
+        dynamicInsights.push({color:'#ef4444', text:`<strong>저몰입형 확대 경고:</strong> 저몰입형이 ${r.molNow['저몰입형']}명 → ${(r.molPred['저몰입형']||0).toFixed(1)}명으로 <strong>+${lowMolDelta.toFixed(1)}명 증가</strong> 예상. 인상률 하위 구간 인력의 이탈 또는 몰입 저하 리스크 모니터링 필요.`});
+    } else {
+        dynamicInsights.push({color:'#10b981', text:`<strong>저몰입형 감소 효과:</strong> 저몰입형이 ${r.molNow['저몰입형']}명 → ${(r.molPred['저몰입형']||0).toFixed(1)}명으로 <strong>${lowMolDelta.toFixed(1)}명 감소</strong> 전망. 보상 차등이 몰입 개선에 긍정적 영향.`});
+    }
+
+    // 만족유형 변화
+    const satStableDelta = (r.satPred['안정온건형']||0) - r.satNow['안정온건형'];
+    const satOverallDelta = (r.satPred['전반불만형']||0) - r.satNow['전반불만형'];
+    dynamicInsights.push({color:'#8b5cf6', text:`<strong>만족유형 변화 예측:</strong> 안정온건형 ${r.satNow['안정온건형']}명 → ${(r.satPred['안정온건형']||0).toFixed(1)}명(${satStableDelta>=0?'+':''}${satStableDelta.toFixed(1)}), 전반불만형 ${r.satNow['전반불만형']}명 → ${(r.satPred['전반불만형']||0).toFixed(1)}명(${satOverallDelta>=0?'+':''}${satOverallDelta.toFixed(1)}). 보상 배분이 전반적 만족도 구조에 미치는 영향을 모니터링해야 함.`});
+
+    // 기존 시나리오 인사이트 + 동적 인사이트 합산
+    const allInsights = [...sc.insights, ...dynamicInsights];
+
+    document.getElementById('ai_insight_list').innerHTML = allInsights.map(i =>
+        `<li style="background:rgba(0,0,0,0.01);border-color:${i.color}">${i.text}</li>`
+    ).join('');
+}
+
+// === 특별관리 Tier 렌더링 ===
+function renderSpecialTier(key) {
+    const sc = AI_SCENARIOS[key];
+    const params = {
+        budget: sc.budget/100,
+        gradeWeights: {S:sc.grades.S/100, A:sc.grades.A/100, B:sc.grades.B/100, C:sc.grades.C/100},
+        mol: sc.mol, targetPctile: sc.policy,
+    };
+    const {employees} = computeWith(params);
+
+    // 저몰입 x 고성과 필터
+    const specials = employees.filter(e => e.mol==='저몰입형' && e.perf==='고성과');
+    document.getElementById('st_count_badge').textContent = specials.length + '명';
+
+    const satColors = {'안정온건형':'tag-sat0','보상불만형':'tag-sat1','직급만족형':'tag-sat2','전반불만형':'tag-sat3'};
+
+    // 24몰입유형 찾기 (원본 데이터에서)
+    const mol24Map = {};
+    DATA.employees.forEach(e => {
+        // 25몰입이 저몰입형인 사람의 24몰입은 원본에서 찾아야 하지만,
+        // 대시보드에서는 현재 mol이 25몰입유형이므로, 전이 여부를 추정
+        mol24Map[e.id] = e.mol; // 이미 24년 데이터
+    });
+
+    document.getElementById('special_tier_tbody').innerHTML = specials
+        .sort((a,b)=>(RANK_ORDER[a.rank]||0)-(RANK_ORDER[b.rank]||0))
+        .map(e => {
+            const rateColor = e.raise_rate>5 ? '#10b981' : e.raise_rate<3 ? '#ef4444' : '#f59e0b';
+            const pctChange = e.new_pctile - e.percentile;
+            return '<tr>'+
+                '<td style="font-weight:600;text-align:left">'+e.name+'</td>'+
+                '<td>'+e.rank+'</td>'+
+                '<td style="font-weight:700">'+e.grade+'</td>'+
+                '<td><span class="tag '+(satColors[e.sat]||'')+'">'+e.sat+'</span></td>'+
+                '<td style="color:#ef4444;font-weight:600">→ 저몰입형</td>'+
+                '<td style="text-align:right">'+fmt(Math.round(e.salary))+'</td>'+
+                '<td>'+e.percentile.toFixed(1)+'%</td>'+
+                '<td style="font-weight:800;color:'+rateColor+'">'+e.raise_rate.toFixed(2)+'%</td>'+
+                '<td style="color:'+(pctChange>0?'#10b981':'#ef4444')+'">'+e.new_pctile.toFixed(1)+'% <span style="font-size:9px">('+( pctChange>0?'+':'')+pctChange.toFixed(1)+')</span></td>'+
+            '</tr>';
+        }).join('');
+
+    // === 전환확률 인사이트 ===
+    // 저몰입형의 인상률 분위별 전환확률을 전이행렬에서 추출
+    const lowTrans = {
+        low: DATA.mol_trans.low['저몰입형'] || {},
+        mid: DATA.mol_trans.mid['저몰입형'] || {},
+        high: DATA.mol_trans.high['저몰입형'] || {},
+    };
+
+    // 이 사람들의 시나리오 인상률 → 평균 대비 비율로 tier 판별
+    const avgAllRate = employees.reduce((s,e)=>s+e.raise_rate,0)/employees.length;
+    const avgSpecialRate = specials.length ? specials.reduce((s,e)=>s+e.raise_rate,0)/specials.length : 0;
+    const specRatio = avgAllRate > 0 ? avgSpecialRate / avgAllRate : 1;
+    const specTier = specRatio >= 1.3 ? 'high' : specRatio >= 0.9 ? 'mid' : 'low';
+    const tierLabels = {low:'하위 (평균의 90% 미만)', mid:'중위 (평균의 90~130%)', high:'상위 (평균의 130% 이상)'};
+
+    // 전환율 계산
+    function convRate(trans) {
+        return 1 - (trans['저몰입형'] || 0);
+    }
+
+    const convLow = convRate(lowTrans.low);
+    const convMid = convRate(lowTrans.mid);
+    const convHigh = convRate(lowTrans.high);
+
+    // 현재 시나리오에서 적용되는 분위의 전환율
+    const currentConv = convRate(lowTrans[specTier]);
+
+    const barMax = Math.max(convLow, convMid, convHigh, 0.01);
+
+    // 각 분위별 전환 대상 유형 상세
+    function topDest(trans) {
+        const dests = MOL_LIST.filter(m=>m!=='저몰입형').map(m=>({name:m, prob:trans[m]||0})).sort((a,b)=>b.prob-a.prob);
+        return dests.filter(d=>d.prob>0).slice(0,2).map(d=>d.name.substring(0,4)+' '+(d.prob*100).toFixed(0)+'%').join(', ');
+    }
+
+    const panel = document.getElementById('transition_insight_panel');
+    panel.innerHTML =
+        '<div class="ti-title">인상률 수준별 몰입유형 전환 확률 분석</div>'+
+        '<div class="transition-bars">'+
+            ['low','mid','high'].map(t => {
+                const conv = convRate(lowTrans[t]);
+                const isCurrent = t === specTier;
+                const barH = Math.round(conv / barMax * 55);
+                const stayH = Math.round((1-conv) / barMax * 55);
+                const borderStyle = isCurrent ? 'border:2px solid #3b82f6;border-radius:8px;padding:4px;background:rgba(59,130,246,0.04)' : '';
+                return '<div class="ti-bar-group" style="'+borderStyle+'">'+
+                    '<div class="ti-bar-label">'+tierLabels[t]+'</div>'+
+                    '<div class="ti-bar-wrap">'+
+                        '<div class="ti-bar" style="height:'+barH+'px;background:linear-gradient(to top,#10b981,#059669)"><span class="ti-bar-val" style="color:#059669">'+(conv*100).toFixed(0)+'%</span></div>'+
+                        '<div class="ti-bar" style="height:'+stayH+'px;background:linear-gradient(to top,#ef4444,#dc2626)"><span class="ti-bar-val" style="color:#dc2626">'+((1-conv)*100).toFixed(0)+'%</span></div>'+
+                    '</div>'+
+                    '<div class="ti-bar-bottom" style="color:#10b981">전환</div>'+
+                    '<div style="font-size:8px;color:#888;margin-top:2px">'+topDest(lowTrans[t])+'</div>'+
+                    (isCurrent ? '<div style="font-size:8px;color:#3b82f6;font-weight:700;margin-top:2px">◀ 현재 시나리오</div>' : '')+
+                '</div>';
+            }).join('')+
+        '</div>'+
+        '<div class="ti-note">'+
+            '<strong>현재 시나리오 적용 시:</strong> 이 그룹 평균 인상률 <strong>'+(avgSpecialRate*100).toFixed(1)+'%</strong> ('+tierLabels[specTier]+') → '+
+            '저몰입형 탈출 확률 <strong style="color:#059669">'+(currentConv*100).toFixed(0)+'%</strong>'+
+            (currentConv < convHigh ?
+                ' · 상위 분위(≥'+(DATA.q66*100).toFixed(1)+'%) 적용 시 <strong style="color:#2563eb">'+(convHigh*100).toFixed(0)+'%</strong>까지 전환 가능' : '')+
+            '<br>'+
+            '주요 전환 경로: '+topDest(lowTrans[specTier])+
+            (specTier !== 'high' ? ' → <strong>인상률 상향 시 안주형 전환 가속 가능</strong>' : '')+
+        '</div>';
+}
+
+// === Tier 카드 상세 토글 ===
+function toggleTierDetail(card) {
+    var detail = card.querySelector('.ts-detail');
+    if (detail) detail.classList.toggle('open');
+}
+
+// === Tier별 보상전략 렌더링 ===
+function renderTierStrategies(key) {
+    const r = analyzeScenario(key);
+    const emps = r.employees;
+
+    function getTier(e) {
+        if (e.mol==='저몰입형' && e.perf==='고성과') return 'special';
+        if (e.mol==='고몰입형' && e.perf==='고성과') return 't1';
+        if (e.mol==='고몰입형' && e.perf!=='고성과') return 't2';
+        if (e.mol==='안주형' && e.perf==='고성과') return 't2';
+        if (e.mol==='안주형' && e.perf==='보통') return 't3';
+        if (e.mol==='개인성장형' && e.perf==='고성과') return 't3';
+        if (e.mol==='개인성장형' && e.perf==='보통') return 't4';
+        if (e.mol==='저몰입형' && e.perf==='보통') return 't4';
+        if (e.mol==='개인성장형' && e.perf==='저성과') return 't5';
+        if (e.mol==='안주형' && e.perf==='저성과') return 't5';
+        if (e.mol==='저몰입형' && e.perf==='저성과') return 't5';
+        return 't3';
+    }
+
+    const tiers = {t1:[],t2:[],t3:[],t4:[],t5:[]};
+    emps.forEach(e => {
+        const t = getTier(e);
+        if (t !== 'special' && tiers[t]) tiers[t].push(e);
+    });
+
+    function avgRate(arr) { return arr.length ? arr.reduce((s,e)=>s+e.raise_rate,0)/arr.length : 0; }
+    function avgPct(arr) { return arr.length ? arr.reduce((s,e)=>s+e.new_pctile,0)/arr.length : 0; }
+
+    const molColors = {'고몰입형':'tag-mol0','안주형':'tag-mol1','개인성장형':'tag-mol2','저몰입형':'tag-mol3'};
+    const satColors = {'안정온건형':'tag-sat0','보상불만형':'tag-sat1','직급만족형':'tag-sat2','전반불만형':'tag-sat3'};
+    const perfColors = {'고성과':'tag-high','보통':'tag-mid','저성과':'tag-low'};
+
+    // 만족유형별 대응 전략
+    const satStrategy = {
+        '안정온건형': {icon:'●', action:'관망형 세그먼트. 극단적 불만은 없으나 적극적 몰입도 낮음. 성과 인정 강화 및 성장 기회 제공으로 몰입 전환 유도.'},
+        '보상불만형': {icon:'▼', action:'보상·복지 불만 집중. 인상률 차등 배분 핵심 대상. 인상 근거 투명 피드백, 복지 제도 보완 병행.'},
+        '직급만족형': {icon:'▲', action:'직무 적합성은 높으나 제도·보상 불만. 직무 안정성 유지하되 보상 경쟁력 확보 및 비전 공유 필요.'},
+        '전반불만형': {icon:'▼', action:'전방위 불만 고위험군. 보상만으로 해결 불가. 직무·조직문화·평가제도·비전 종합 점검 및 즉각 개입.'}
+    };
+
+    const tierMeta = [
+        { id:'t1', cls:'ts-t1', badge:'TIER 1', title:'핵심 유지 (고몰입·고성과)',
+            desc:'조직의 핵심 인재. 높은 몰입과 성과를 동시에 보유한 최우선 리텐션 대상.',
+            strategy:'<strong>최우선 보상:</strong> 인상률 상한 적용 + 시장 75%ile 이상 목표. 비금전적 인정 프로그램 병행.' },
+        { id:'t2', cls:'ts-t2', badge:'TIER 2', title:'성장 촉진 (고몰입·보통성과 / 안주형·고성과)',
+            desc:'고몰입·보통/저성과 또는 안주형·고성과. 조직 몰입은 있으나 성과 축 보강이 필요한 그룹.',
+            strategy:'<strong>차별 보상:</strong> 평균 대비 1.2~1.5배. 고몰입자는 성과 코칭, 안주형 고성과는 몰입 자극 프로그램 연계.' },
+        { id:'t3', cls:'ts-t3', badge:'TIER 3', title:'안정 관리 (안주형·보통 / 개인성장형·고성과)',
+            desc:'안주형·보통 성과 또는 개인성장형·고성과. 성과는 있으나 조직 일체감이 약한 개인성장형은 전환 관찰 대상.',
+            strategy:'<strong>적정 보상:</strong> 시장 중위 수준 유지. 개인성장형은 조직 목표 연계 과제 부여로 몰입 유도.' },
+        { id:'t4', cls:'ts-t4', badge:'TIER 4', title:'전환 유도 (개인성장형·보통 / 저몰입·보통)',
+            desc:'조직 몰입 없이 개인 성장만 추구하거나 전반적 몰입이 낮은 그룹. 원인별 맞춤 개입 필요.',
+            strategy:'<strong>조건부 보상:</strong> 최소 인상 + 조직 몰입 프로그램 연계. 개인성장형은 팀 프로젝트·멘토링으로 조직 일체감 형성 유도.' },
+        { id:'t5', cls:'ts-t5', badge:'TIER 5', title:'근본 관리 (저몰입·저성과 / 안주·저성과 / 개인성장·저성과)',
+            desc:'몰입과 성과 모두 낮은 그룹. 보상보다 직무적합성·역량진단이 우선.',
+            strategy:'<strong>최소 보상:</strong> 동결 수준. 1:1 면담 + 직무 재배치 + 성과 코칭. 역할 적합성(Role Fit) 재검토.' }
+    ];
+
+    // Tier별 만족유형 분포 분석 및 맞춤 대응 전략 생성
+    function buildSatInsight(arr) {
+        if (!arr.length) return '';
+        const satDist = {};
+        SAT_LIST.forEach(s => satDist[s] = arr.filter(e=>e.sat===s).length);
+        const sorted = SAT_LIST.filter(s=>satDist[s]>0).sort((a,b)=>satDist[b]-satDist[a]);
+        if (!sorted.length) return '';
+        return '<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.12);font-size:10px;line-height:1.7">'+
+            '<div style="font-weight:700;color:#7c3aed;margin-bottom:4px;font-size:10px">만족유형별 대응 전략</div>'+
+            sorted.map(s => {
+                const st = satStrategy[s];
+                const pct = Math.round(satDist[s]/arr.length*100);
+                return '<div style="margin-bottom:3px">'+
+                    '<span class="tag '+(satColors[s]||'')+'" style="margin-right:4px">'+st.icon+' '+s+'</span>'+
+                    '<span style="color:#999;font-size:9px">'+satDist[s]+'명('+pct+'%)</span>'+
+                    '<span style="color:#555;margin-left:4px">'+st.action+'</span>'+
+                '</div>';
+            }).join('')+
+        '</div>';
+    }
+
+    function buildDetailTable(arr) {
+        if (!arr.length) return '<div style="font-size:10px;color:#999;padding:8px">해당 인원 없음</div>';
+        const sorted = [...arr].sort((a,b)=>b.raise_rate-a.raise_rate);
+        return '<table class="ts-detail-table"><thead><tr>'+
+            '<th>성명</th><th>직급</th><th>등급</th><th>몰입</th><th>만족</th><th>24기본급</th><th>인상률</th><th>인상후%ile</th>'+
+        '</tr></thead><tbody>'+
+        sorted.map(e => {
+            const rateColor = e.raise_rate>5?'#10b981':e.raise_rate<2?'#ef4444':'#f59e0b';
+            const pc = e.new_pctile-e.percentile;
+            return '<tr>'+
+                '<td>'+e.name+'</td><td>'+e.rank+'</td>'+
+                '<td style="font-weight:700">'+e.grade+'</td>'+
+                '<td><span class="tag '+(molColors[e.mol]||'')+'">'+e.mol+'</span></td>'+
+                '<td><span class="tag '+(satColors[e.sat]||'')+'">'+e.sat+'</span></td>'+
+                '<td style="text-align:right">'+fmt(Math.round(e.salary))+'</td>'+
+                '<td style="font-weight:700;color:'+rateColor+'">'+e.raise_rate.toFixed(2)+'%</td>'+
+                '<td style="color:'+(pc>0?'#10b981':'#ef4444')+'">'+e.new_pctile.toFixed(1)+'%</td>'+
+            '</tr>';
+        }).join('')+
+        '</tbody></table>';
+    }
+
+    function renderCard(m) {
+        const arr = tiers[m.id];
+        const rate = avgRate(arr);
+        const pct = avgPct(arr);
+        const detailId = 'ts_detail_'+m.id;
+        return '<div class="tier-strategy-card '+m.cls+'" onclick="toggleTierDetail(this)">'+
+            '<div class="ts-header">'+
+                '<span class="ts-tier-badge">'+m.badge+'</span>'+
+                '<span class="ts-title">'+m.title+'</span>'+
+                '<span class="ts-count">'+arr.length+'명</span>'+
+            '</div>'+
+            '<div class="ts-desc">'+m.desc+'</div>'+
+            '<div class="ts-strategy">'+m.strategy+'</div>'+
+            buildSatInsight(arr)+
+            '<div class="ts-rate">평균 '+rate.toFixed(1)+'% <span style="font-size:11px;font-weight:400;color:#999">→ '+pct.toFixed(1)+'%ile</span></div>'+
+            '<div class="ts-toggle-hint">클릭하여 상세 보기 ▾</div>'+
+            '<div class="ts-detail" id="'+detailId+'">'+buildDetailTable(arr)+'</div>'+
+        '</div>';
+    }
+
+    document.getElementById('tier_strategy_grid').innerHTML = tierMeta.slice(0,3).map(renderCard).join('');
+    document.getElementById('tier_strategy_grid2').innerHTML = tierMeta.slice(3,5).map(renderCard).join('');
+}
+
+function setPolicy(pctile) {
+    document.getElementById('s_policy').value = pctile;
+    document.querySelectorAll('.policy-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('pol_' + pctile).classList.add('active');
+    updateCustomBadge();
+    updateAll();
+}
+
+function updateGradeBar() {
+    const vals = ['S','A','B','C'].map(g => parseFloat(document.getElementById('g_'+g).value));
+    const avg = vals.reduce((a,b)=>a+b,0)/4;
+    const bar = document.getElementById('grade_total_bar');
+    const balanced = Math.abs(avg - 100) < 15;
+    bar.style.background = balanced ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+    bar.style.color = balanced ? '#10b981' : '#ef4444';
+    bar.textContent = '4등급 평균: ' + avg.toFixed(0) + '% ' + (balanced ? '✓ 균형' : '⚠ 불균형');
+}
+
+function updateCustomBadge() {
+    const badge = document.getElementById('current_mode_badge');
+    badge.textContent = '현재 적용: 사용자 커스텀';
+    badge.style.background = 'rgba(245,158,11,0.2)';
+    badge.style.color = '#f59e0b';
+    currentScenario = null;
+    document.querySelectorAll('.ai-card').forEach(c=>c.classList.remove('selected'));
+}
+
+function updateAll() {
+    document.getElementById('v_budget').textContent = document.getElementById('s_budget').value+'%';
+    document.getElementById('v_mol0').textContent = document.getElementById('s_mol0').value;
+    document.getElementById('v_mol1').textContent = document.getElementById('s_mol1').value;
+    document.getElementById('v_mol2').textContent = document.getElementById('s_mol2').value;
+    document.getElementById('v_mol3').textContent = document.getElementById('s_mol3').value;
+
+    const policyVal = document.getElementById('s_policy').value;
+    document.getElementById('v_policy').textContent = policyVal+'%ile';
+    document.querySelectorAll('.policy-btn').forEach(b => b.classList.remove('active'));
+    if (policyVal==='25') document.getElementById('pol_25').classList.add('active');
+    else if (policyVal==='50') document.getElementById('pol_50').classList.add('active');
+    else if (policyVal==='75') document.getElementById('pol_75').classList.add('active');
+
+    updateGradeBar();
+
+    const { employees, totalSalary, budget } = compute();
+    const predictions = predictTypes(employees);
+    const rates = employees.map(e=>e.raise_rate);
+    const avgRate = rates.reduce((a,b)=>a+b,0)/rates.length;
+    const maxRate = Math.max(...rates);
+    const minRate = Math.min(...rates);
+
+    document.getElementById('total_salary').textContent = fmt(Math.round(totalSalary))+'원';
+    document.getElementById('budget_amount').textContent = fmt(Math.round(budget))+'원';
+
+    animateValue('sum_avg', avgRate.toFixed(2)+'%');
+    animateValue('sum_max', maxRate.toFixed(2)+'%');
+    animateValue('sum_min', minRate.toFixed(2)+'%');
+    animateValue('sum_ratio', (maxRate/minRate).toFixed(1)+'배');
+
+    // 히트맵
+    const hm = document.getElementById('heatmap');
+    hm.innerHTML = '<div class="heatmap-header"></div><div class="heatmap-header">고성과</div><div class="heatmap-header">보통</div><div class="heatmap-header">저성과</div>';
+    let allVals = [];
+    MOL_LIST.forEach(mol => {
+        PERF_LIST.forEach(p => {
+            const sub = employees.filter(e=>e.mol===mol&&e.perf===p);
+            if (sub.length) allVals.push(sub.reduce((s,e)=>s+e.raise_rate,0)/sub.length);
+        });
+    });
+    const hmMin = allVals.length ? Math.min(...allVals) : 0;
+    const hmMax = allVals.length ? Math.max(...allVals) : 1;
+    MOL_LIST.forEach(mol => {
+        hm.innerHTML += '<div class="heatmap-row-label">'+mol+'</div>';
+        PERF_LIST.forEach(p => {
+            const sub = employees.filter(e=>e.mol===mol&&e.perf===p);
+            const val = sub.length ? sub.reduce((s,e)=>s+e.raise_rate,0)/sub.length : 0;
+            const color = sub.length ? heatColor(val, hmMin, hmMax) : '#f0f0f0';
+            const tc = sub.length ? 'white' : '#999';
+            hm.innerHTML += '<div class="heatmap-cell" style="background:'+color+';color:'+tc+'">'+val.toFixed(1)+'%<br><span style="font-size:10px;opacity:0.7">'+sub.length+'명</span></div>';
+        });
+    });
+
+    // 차트
+    const rankData = RANK_LIST.map(r => { const sub=employees.filter(e=>e.rank===r); return sub.length?sub.reduce((s,e)=>s+e.raise_rate,0)/sub.length:0; });
+    chartRank.data.datasets[0].data = rankData; chartRank.update('active');
+
+    const pctBefore = RANK_LIST.map(r => { const sub=employees.filter(e=>e.rank===r); return sub.length?sub.reduce((s,e)=>s+e.percentile,0)/sub.length:0; });
+    const pctAfter = RANK_LIST.map(r => { const sub=employees.filter(e=>e.rank===r); return sub.length?sub.reduce((s,e)=>s+e.new_pctile,0)/sub.length:0; });
+    chartPctile.data.datasets[0].data = pctBefore; chartPctile.data.datasets[1].data = pctAfter; chartPctile.update('active');
+
+    const molNow = MOL_LIST.map(m=>employees.filter(e=>e.mol===m).length);
+    const molPred = MOL_LIST.map(m=>predictions.mol_pred[m]);
+    chartMol.data.datasets[0].data = molNow; chartMol.data.datasets[1].data = molPred; chartMol.update('active');
+
+    const satNow = SAT_LIST.map(s=>employees.filter(e=>e.sat===s).length);
+    const satPred = SAT_LIST.map(s=>predictions.sat_pred[s]);
+    chartSat.data.datasets[0].data = satNow; chartSat.data.datasets[1].data = satPred; chartSat.update('active');
+
+    renderTable();
+}
+
+function animateValue(id, newVal) {
+    const el = document.getElementById(id);
+    el.style.transform = 'scale(1.1)'; el.textContent = newVal;
+    setTimeout(()=> el.style.transform = 'scale(1)', 200);
+}
+
+function renderTable() {
+    let sorted = [...computedEmployees];
+    if (currentSort==='rate_desc') sorted.sort((a,b)=>b.raise_rate-a.raise_rate);
+    else if (currentSort==='rate_asc') sorted.sort((a,b)=>a.raise_rate-b.raise_rate);
+    else if (currentSort==='rank') sorted.sort((a,b)=>(RANK_ORDER[a.rank]||0)-(RANK_ORDER[b.rank]||0));
+    else if (currentSort==='pctile') sorted.sort((a,b)=>a.percentile-b.percentile);
+
+    const molColors = {'고몰입형':'tag-mol0','안주형':'tag-mol1','개인성장형':'tag-mol2','저몰입형':'tag-mol3'};
+    const satColors = {'안정온건형':'tag-sat0','보상불만형':'tag-sat1','직급만족형':'tag-sat2','전반불만형':'tag-sat3'};
+    const perfColors = {'고성과':'tag-high','보통':'tag-mid','저성과':'tag-low'};
+
+    document.getElementById('tbody').innerHTML = sorted.map(e => {
+        const rateColor = e.raise_rate>5 ? '#10b981' : e.raise_rate<2 ? '#ef4444' : '#f59e0b';
+        const pctChange = e.new_pctile - e.percentile;
+        const pctColor = pctChange>0 ? '#10b981' : '#ef4444';
+        const isSpecial = e.mol==='저몰입형' && e.perf==='고성과';
+        return '<tr'+(isSpecial?' class="special-watch"':'')+'>'+
+            '<td style="font-weight:600;text-align:left">'+e.name+'</td>'+
+            '<td>'+e.rank+'</td>'+
+            '<td><span style="font-weight:700">'+e.grade+'</span></td>'+
+            '<td><span class="tag '+(molColors[e.mol]||'')+'">'+e.mol+'</span></td>'+
+            '<td><span class="tag '+(satColors[e.sat]||'')+'">'+e.sat+'</span></td>'+
+            '<td><span class="tag '+(perfColors[e.perf]||'')+'">'+e.perf+'</span></td>'+
+            '<td style="text-align:right;color:#555">'+fmt(Math.round(e.salary))+'</td>'+
+            '<td>'+e.percentile.toFixed(1)+'%</td>'+
+            '<td style="color:#3b82f6">'+e.total_w.toFixed(2)+'</td>'+
+            '<td style="font-weight:800;color:'+rateColor+';font-size:12px">'+e.raise_rate.toFixed(2)+'%</td>'+
+            '<td style="text-align:right">'+fmt(Math.round(e.raise_amt))+'</td>'+
+            '<td style="text-align:right;font-weight:600">'+fmt(Math.round(e.new_salary))+'</td>'+
+            '<td style="color:'+pctColor+'">'+e.new_pctile.toFixed(1)+'% <span style="font-size:9px">('+( pctChange>0?'+':'')+pctChange.toFixed(1)+')</span></td>'+
+        '</tr>';
+    }).join('');
+}
+
+function sortTable(mode, btn) {
+    currentSort = mode;
+    document.querySelectorAll('.btn-group .btn').forEach(b=>b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderTable();
+}
+
+function resetParams() {
+    document.getElementById('s_budget').value=3.5;
+    document.getElementById('g_S').value=150; document.getElementById('g_A').value=120;
+    document.getElementById('g_B').value=100; document.getElementById('g_C').value=60;
+    document.getElementById('s_policy').value=50;
+    document.getElementById('s_mol0').value=1.5; document.getElementById('s_mol1').value=1.0;
+    document.getElementById('s_mol2').value=0.8; document.getElementById('s_mol3').value=0.7;
+    const badge = document.getElementById('current_mode_badge');
+    badge.textContent = '현재 적용: 균형 최적형 (기본값)';
+    badge.style.background = 'rgba(16,185,129,0.2)';
+    badge.style.color = '#10b981';
+    updateAll();
+}
+
+function initCharts() {
+    Chart.defaults.color = '#666';
+    Chart.defaults.borderColor = 'rgba(0,0,0,0.06)';
+    const opts = { responsive:true, animation:{duration:600,easing:'easeOutQuart'}, plugins:{legend:{labels:{font:{size:10},padding:12}}} };
+
+    chartRank = new Chart(document.getElementById('chartRank'), {
+        type:'bar',
+        data:{ labels:RANK_LIST, datasets:[{label:'평균 인상률(%)',data:[],
+            backgroundColor:['#14b8a6','#3b82f6','#8b5cf6'],borderRadius:6}] },
+        options:{...opts, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+    });
+
+    chartPctile = new Chart(document.getElementById('chartPctile'), {
+        type:'bar',
+        data:{ labels:RANK_LIST, datasets:[
+            {label:'24년(현재)',data:[],backgroundColor:'rgba(59,130,246,0.6)',borderRadius:6},
+            {label:'25년(인상후)',data:[],backgroundColor:'rgba(239,68,68,0.6)',borderRadius:6}
+        ]},
+        options:{...opts, scales:{y:{beginAtZero:true,max:70,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+    });
+
+    chartMol = new Chart(document.getElementById('chartMol'), {
+        type:'bar',
+        data:{ labels:MOL_LIST, datasets:[
+            {label:'24년(현재)',data:[],backgroundColor:'rgba(0,0,0,0.08)',borderRadius:6},
+            {label:'25년(예측)',data:[],backgroundColor:'rgba(16,185,129,0.6)',borderRadius:6}
+        ]},
+        options:{...opts, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+    });
+
+    chartSat = new Chart(document.getElementById('chartSat'), {
+        type:'bar',
+        data:{ labels:SAT_LIST.map(s=>s.length>5?s.substring(0,5)+'..':s), datasets:[
+            {label:'24년(현재)',data:[],backgroundColor:'rgba(0,0,0,0.08)',borderRadius:6},
+            {label:'25년(예측)',data:[],backgroundColor:'rgba(245,158,11,0.6)',borderRadius:6}
+        ]},
+        options:{...opts, scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+    });
+}
+
+// 유형별 직급 도넛 차트 (G3→G2→G1 순서)
+const RANK_DESC = ['G3','G2','G1'];
+const RANK_DESC_COLORS = ['#ef4444','#3b82f6','#10b981'];
+
+function initTypeDonutCharts() {
+    const donutOpts = {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{legend:{display:false},tooltip:{bodyFont:{size:11}}},
+        cutout:'55%', animation:{duration:800,easing:'easeOutQuart'}
+    };
+
+    function renderDonut(canvasId, legendId, dist) {
+        if (!dist) return;
+        const counts = RANK_DESC.map(r => dist[r]||0);
+        const total = counts.reduce((a,b)=>a+b,0);
+        if (total===0) return;
+
+        new Chart(document.getElementById(canvasId), {
+            type:'doughnut',
+            data:{ labels:RANK_DESC, datasets:[{data:counts, backgroundColor:RANK_DESC_COLORS, borderWidth:0}] },
+            options:donutOpts
+        });
+
+        document.getElementById(legendId).innerHTML =
+            '<div style="font-weight:600;color:#444;margin-bottom:4px">직급 구성 <span style="color:#999;font-weight:400">('+total+'명)</span></div>' +
+            RANK_DESC.map((r,j) =>
+                '<div class="leg-item"><span class="leg-dot" style="background:'+RANK_DESC_COLORS[j]+'"></span>'+r+' <span class="leg-count">'+counts[j]+'명 ('+(total>0?Math.round(counts[j]/total*100):0)+'%)</span></div>'
+            ).join('');
+    }
+
+    MOL_LIST.forEach((t,i) => renderDonut('dc_mol_'+i, 'dcl_mol_'+i, DATA.mol_rank_dist[t]));
+    SAT_LIST.forEach((t,i) => renderDonut('dc_sat_'+i, 'dcl_sat_'+i, DATA.sat_rank_dist[t]));
+}
+
+// 이벤트 바인딩
+document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('input', function(){ updateCustomBadge(); updateAll(); }));
+document.querySelectorAll('.grade-item input').forEach(el=>el.addEventListener('input', function(){ updateCustomBadge(); updateAll(); }));
+
+initCharts();
+updateAll();
+initTypeDonutCharts();
+// AI 탭의 모든 차트/패널은 탭 활성화 시 렌더링 (display:none canvas 문제 방지)
+</script>
+</body>
+</html>

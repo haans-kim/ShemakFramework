@@ -5,7 +5,8 @@
       "Read(//Users/hanskim/Projects/SambioHRR/app/**)",
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --turbopack --yes)",
       "Read(//private/tmp/**)",
-      "Bash(npx create-next-app@latest shemak-frame --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --turbopack --yes)"
+      "Bash(npx create-next-app@latest shemak-frame --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --turbopack --yes)",
+      "Read(//Users/hanskim/Projects/PoC/**)"
     ]
   }
 }

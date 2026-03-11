@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optic View | Cross-Company Prediction</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial,Helvetica,sans-serif; background:#f8fafc; color:#111827; min-height:100vh; }
+
+/* Header */
+.header { background:#fff; padding:20px 32px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #e5e7eb; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.header h1 { font-size:20px; font-weight:600; color:#111827; }
+.header .subtitle { color:#6b7280; font-size:13px; margin-top:2px; }
+
+/* Tabs */
+.tabs { display:flex; gap:0; background:#fff; border-bottom:2px solid #e5e7eb; padding:0 32px; }
+.tab { padding:14px 24px; cursor:pointer; font-size:14px; font-weight:500; color:#6b7280; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; }
+.tab:hover { color:#111827; }
+.tab.active { color:#111827; border-bottom-color:#111827; font-weight:600; }
+
+/* Content */
+.content { padding:24px 32px; max-width:1280px; margin:0 auto; }
+.page { display:none; }
+.page.active { display:block; }
+
+/* Grid */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.grid-5 { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+
+/* Card (shadcn style) */
+.card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; box-shadow:0 1px 2px rgba(0,0,0,.05); transition:all .2s; }
+.card:hover { box-shadow:0 4px 6px rgba(0,0,0,.07); }
+.card-title { font-size:14px; font-weight:600; color:#111827; margin-bottom:12px; }
+.card-subtitle { font-size:12px; color:#6b7280; }
+
+/* Metric card */
+.metric-card { padding:16px; }
+.metric-val { font-size:24px; font-weight:700; color:#111827; }
+.metric-label { font-size:12px; color:#6b7280; margin-top:2px; }
+.metric-sub { font-size:11px; color:#9ca3af; margin-top:4px; }
+
+/* Section */
+.section-title { font-size:16px; font-weight:600; color:#111827; margin:28px 0 8px; }
+.section-desc { font-size:13px; color:#6b7280; margin-bottom:16px; }
+
+/* Summary card (left border) */
+.summary-card { border-radius:8px; padding:16px; background:linear-gradient(to bottom right, var(--grad-from), #fff); border:2px solid #d1d5db; border-left:4px solid var(--border-color); box-shadow:0 1px 2px rgba(0,0,0,.05); transition:all .2s; }
+.summary-card:hover { box-shadow:0 4px 6px rgba(0,0,0,.07); }
+
+/* Type cards */
+.type-card { position:relative; cursor:pointer; }
+.type-card .type-symbol { font-size:20px; margin-bottom:4px; }
+.type-card .type-name { font-size:14px; font-weight:700; color:#111827; margin-bottom:4px; }
+.type-card .type-count { font-size:12px; color:#6b7280; }
+.type-card .type-desc { font-size:11px; color:#6b7280; margin-top:8px; line-height:1.5; }
+.type-card canvas { margin:8px 0; }
+
+/* Heatmap */
+.heatmap-container { overflow-x:auto; }
+.heatmap-table { width:100%; border-collapse:separate; border-spacing:2px; }
+.heatmap-table th { font-size:11px; color:#6b7280; padding:6px 8px; text-align:center; font-weight:500; }
+.heatmap-table td { text-align:center; font-size:12px; font-weight:600; padding:8px 4px; border-radius:4px; min-width:55px; }
+.heatmap-table .q-label { text-align:left; font-size:11px; color:#374151; padding-left:8px; min-width:130px; white-space:nowrap; }
+.area-divider td { height:4px; padding:0; }
+.area-tag { font-size:10px; font-weight:600; padding:2px 8px; border-radius:4px; display:inline-block; }
+.area-tag.lead { background:#ede9fe; color:#7c3aed; }
+.area-tag.hr { background:#dcfce7; color:#16a34a; }
+.area-tag.org { background:#dbeafe; color:#2563eb; }
+
+/* Flow */
+.flow { display:flex; align-items:center; justify-content:center; gap:12px; padding:20px; flex-wrap:wrap; }
+.flow-box { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:14px 20px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+.flow-box .fval { font-size:16px; font-weight:700; color:#111827; }
+.flow-box .flabel { font-size:11px; color:#6b7280; }
+.flow-arrow { font-size:20px; color:#9ca3af; }
+
+/* Gauge */
+.gauge-row { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; }
+.gauge-box { text-align:center; width:200px; }
+.gauge-box canvas { width:180px!important; height:100px!important; }
+.gauge-label { font-size:13px; color:#6b7280; margin-top:4px; }
+.gauge-val { font-size:28px; font-weight:700; }
+
+/* Tables */
+.data-table { width:100%; border-collapse:collapse; }
+.data-table th { font-size:12px; color:#6b7280; padding:10px 8px; text-align:center; border-bottom:1px solid #e5e7eb; font-weight:500; }
+.data-table td { font-size:13px; padding:10px 8px; text-align:center; border-bottom:1px solid #f3f4f6; color:#374151; }
+.data-table tr:hover { background:#f9fafb; }
+.match { color:#10b981; font-weight:600; }
+.mismatch { color:#ef4444; font-weight:600; }
+
+/* Prediction cards */
+.pred-card { border-left:4px solid var(--pred-color); padding:14px 16px; margin-bottom:10px; border-radius:0 8px 8px 0; background:#fff; border-top:1px solid #e5e7eb; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,.05); transition:all .2s; }
+.pred-card:hover { box-shadow:0 4px 6px rgba(0,0,0,.07); }
+.pred-card .pred-title { font-size:13px; font-weight:600; color:#111827; margin-bottom:6px; }
+.pred-card .pred-text { font-size:12px; color:#6b7280; line-height:1.6; }
+.pred-card .pred-num { font-size:16px; font-weight:700; }
+
+/* Action cards */
+.action-card { padding:18px; }
+.action-card .risk-badge { font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px; margin-bottom:8px; display:inline-block; }
+.action-card h4 { font-size:14px; font-weight:600; color:#111827; margin-bottom:8px; }
+.action-card ul { padding-left:16px; font-size:12px; color:#6b7280; line-height:1.8; }
+
+/* Insight box */
+.insight-box { background:linear-gradient(to bottom right,#ede9fe,#fff); border:1px solid #c4b5fd; border-radius:8px; padding:20px; margin-top:20px; }
+.insight-box h3 { font-size:14px; font-weight:600; color:#5b21b6; margin-bottom:12px; }
+.insight-box ol { padding-left:18px; font-size:13px; color:#374151; line-height:2; }
+
+/* Status colors (가이드라인 기준) */
+.status-high { color:#ef4444; }
+.status-mid { color:#10b981; }
+.status-low { color:#3b82f6; }
+.status-warn { color:#f59e0b; }
+
+/* SVG icon inline */
+.icon-sm { width:16px; height:16px; vertical-align:middle; margin-right:4px; }
+.icon-md { width:20px; height:20px; vertical-align:middle; margin-right:6px; }
+
+@media (max-width:900px) {
+  .grid-2,.grid-3,.grid-4,.grid-5 { grid-template-columns:1fr; }
+  .tabs { overflow-x:auto; padding:0 16px; }
+  .content { padding:16px; }
+  .flow { flex-direction:column; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Optic View Cross-Company Prediction</h1>
+    <div class="subtitle">기준 모델(S***) 응답 패턴으로 O*** HR 예측 시연</div>
+  </div>
+  <div style="font-size:12px;color:#9ca3af">insightgroup.co.kr</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab(0)">기준 모델</div>
+  <div class="tab" onclick="showTab(1)">O*** 분석</div>
+  <div class="tab" onclick="showTab(2)">조직별 개선과제</div>
+  <div class="tab" onclick="showTab(3)">검증</div>
+</div>
+
+<!-- ===== TAB 1: Learning ===== -->
+<div class="content">
+<div class="page active" id="page0">
+
+  <div class="grid-3" style="margin-bottom:24px">
+    <div class="card metric-card">
+      <div class="metric-label">학습 데이터</div>
+      <div class="metric-val">255명</div>
+      <div class="metric-sub">S*** 조직진단 응답</div>
+    </div>
+    <div class="card metric-card">
+      <div class="metric-label">분석 문항</div>
+      <div class="metric-val">18문항</div>
+      <div class="metric-sub">리더십(10) / 인사제도(5) / 조직프로세스(3)</div>
+    </div>
+    <div class="card metric-card">
+      <div class="metric-label">유형화 방법</div>
+      <div class="metric-val">K-Means (K=5)</div>
+      <div class="metric-sub">StandardScaler + 3영역 평균 기반</div>
+    </div>
+  </div>
+
+  <div class="section-title">5개 유형 프로파일</div>
+  <div class="section-desc">S*** 255명의 응답 패턴에서 발견된 5개 조직 유형</div>
+
+  <div class="grid-5" id="typeCards"></div>
+
+  <div class="grid-2" style="margin-top:24px">
+    <div class="card">
+      <div class="card-title">유형별 HR 실적 (S*** 내부)</div>
+      <canvas id="hrBarChart" height="220"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">문항별 응답 패턴 히트맵 (18문항 x 5유형)</div>
+      <div class="heatmap-container" id="heatmapContainer"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== TAB 2: O*** Analysis ===== -->
+<div class="page" id="page1">
+
+  <div class="section-title">O*** 분석 프로세스</div>
+  <div class="flow">
+    <div class="flow-box"><div class="fval">S***</div><div class="flabel">255명 학습 완료</div></div>
+    <div class="flow-arrow">&#10140;</div>
+    <div class="flow-box"><div class="fval">Scaler + Model</div><div class="flabel">StandardScaler + K-Means</div></div>
+    <div class="flow-arrow">&#10140;</div>
+    <div class="flow-box"><div class="fval">O***</div><div class="flabel">45명 응답 투입</div></div>
+    <div class="flow-arrow">&#10140;</div>
+    <div class="flow-box" style="border:2px solid #111827"><div class="fval">유형 분류 완료</div><div class="flabel">5개 유형 배정</div></div>
+  </div>
+
+  <div class="grid-3" style="margin-top:20px">
+    <div class="card" style="padding:14px">
+      <div class="card-title" style="margin-bottom:8px">유형 분포 비교</div>
+      <div style="height:150px"><canvas id="distCompare"></canvas></div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div class="card-title" style="margin-bottom:8px">직급별 유형 분포</div>
+      <div style="height:150px"><canvas id="rankStackedBar"></canvas></div>
+    </div>
+    <div class="card" style="padding:14px">
+      <div class="card-title" style="margin-bottom:8px">조직별 유형 분포</div>
+      <div style="height:150px"><canvas id="orgDistBar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title" style="margin-top:28px">유형별 HR 전망 예측</div>
+  <div class="section-desc">O*** 각 유형의 평가등급·시장 보상수준 대비 백분위를 예측합니다</div>
+  <div id="predCards"></div>
+
+</div>
+
+<!-- ===== TAB 3: Action Plan (page2) ===== -->
+<div class="page" id="page2">
+
+  <div class="section-title">조직별 개선과제</div>
+  <div class="section-desc">조직의 주요 유형 구성을 바탕으로 맞춤 개선과제를 도출합니다</div>
+  <div id="orgActionCards"></div>
+
+  <div class="insight-box" style="margin-top:24px">
+    <h3>핵심 인사이트</h3>
+    <ol>
+      <li><strong>총무.경리부</strong>는 T1(리더십 단절군) 비중이 가장 높아 이탈 위험 최우선 관리 필요</li>
+      <li><strong>기획디자인부, 정보전산실</strong>은 T2(보상 괴리군) 집중 &#8212; 보상 포지셔닝 재검토 시급</li>
+      <li><strong>기획개발부</strong>는 T4(균형 안정군)가 과반 &#8212; 핵심인재 리텐션에 집중</li>
+    </ol>
+  </div>
+
+</div>
+
+<!-- ===== TAB 4: Validation (page3) ===== -->
+<div class="page" id="page3">
+
+  <div class="section-title">예측 정확도 (F1 Score)</div>
+  <div class="gauge-row" id="gaugeRow">
+    <div class="gauge-box">
+      <canvas id="gaugeEval"></canvas>
+      <div class="gauge-val status-warn">0.458</div>
+      <div class="gauge-label">평가등급 예측 F1</div>
+    </div>
+    <div class="gauge-box">
+      <canvas id="gaugePctile"></canvas>
+      <div class="gauge-val status-mid">0.554</div>
+      <div class="gauge-label">시장 보상 백분위 예측 F1</div>
+    </div>
+    <div class="gauge-box">
+      <canvas id="gaugeInternal"></canvas>
+      <div class="gauge-val" style="color:#6b7280">0.468</div>
+      <div class="gauge-label">섬유 내부 F1 (비교)</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:24px">
+    <div class="card">
+      <div class="card-title">유형별 예측 vs 실제</div>
+      <table class="data-table">
+        <thead>
+          <tr><th>유형</th><th>예측 고평가율</th><th>실제 고평가율</th><th>예측 보상 백분위</th><th>실제 보상 백분위</th></tr>
+        </thead>
+        <tbody id="compareBody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Confusion Matrix (T4+T5 &#10140; 고평가)</div>
+      <canvas id="cmChart" height="200"></canvas>
+      <div style="margin-top:12px">
+        <table class="data-table">
+          <thead><tr><th>전이 방향</th><th>F1 (macro)</th></tr></thead>
+          <tbody>
+            <tr><td>O***&#10140;S***</td><td>0.492</td></tr>
+            <tr><td style="font-weight:700">S***&#10140;O***</td><td style="font-weight:700;color:#111827">0.458</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const shwTypes = [
+  {name:'리더십 단절군',n:33,pct:12.9,lead:1.89,hr:2.18,org:2.15,highRate:12.1,pctile:22.8,
+   desc:'전 영역 최저, 리더십 신뢰 극저. 평가 하락률 27%로 최고',symbol:'▲',status:'high'},
+  {name:'보상 괴리군',n:69,pct:27.1,lead:3.25,hr:2.57,org:2.35,highRate:20.3,pctile:12.0,
+   desc:'리더십 OK이나 보상/제도 불만 심각. 시장 보상 백분위 최저',symbol:'▲',status:'high'},
+  {name:'리더십 갈망군',n:79,pct:31.0,lead:2.81,hr:3.18,org:3.15,highRate:20.3,pctile:22.8,
+   desc:'인사제도 만족이나 리더십 성장에 갈증. 가장 안정적 변화',symbol:'●',status:'mid'},
+  {name:'균형 안정군',n:58,pct:22.7,lead:4.01,hr:3.41,org:3.33,highRate:17.2,pctile:14.7,
+   desc:'전 영역 3점대 이상 균형. 조직의 안정적 중핵',symbol:'▼',status:'low'},
+  {name:'충성 헌신군',n:16,pct:6.3,lead:4.67,hr:4.38,org:4.40,highRate:6.2,pctile:8.3,
+   desc:'만족도 최고이나 고평가율/시장 보상 백분위 최저 - 충성-보상 역설',symbol:'▼',status:'low'},
+];
+
+const ossTypes = [
+  {type:'T1',n:6,pct:13.3,lead:1.79,hr:2.46,org:1.67,highRate:20.0,pctile:49.5},
+  {type:'T2',n:9,pct:20.0,lead:2.79,hr:2.50,org:2.63,highRate:33.3,pctile:48.6},
+  {type:'T3',n:11,pct:24.4,lead:2.92,hr:3.11,org:3.12,highRate:30.0,pctile:52.1},
+  {type:'T4',n:12,pct:26.7,lead:3.70,hr:3.58,org:3.61,highRate:27.3,pctile:54.2},
+  {type:'T5',n:7,pct:15.6,lead:4.04,hr:4.04,org:4.24,highRate:16.7,pctile:53.7},
+];
+
+const heatmapData = {
+  labels:['업무수행/조직설계','복리후생','평가제도','보상제도','수직위계/역할명확',
+          '임금경쟁력','보상/성과연계','회의보고/효율',
+          '동기부여/목표','인재육성/기회','인재육성/코칭','변화관리/필요성',
+          '변화관리/방향성','권한위임/신뢰','업무지시/명확','의사결정/근거',
+          '의사결정/시의적절','목표관리/연계'],
+  areas:['org','hr','hr','hr','org','hr','hr','org',
+         'lead','lead','lead','lead','lead','lead','lead','lead','lead','lead'],
+  values:[
+    [2.67,3.00,3.43,3.84,4.50],[2.15,2.64,2.95,3.34,4.38],[3.70,3.68,4.15,4.36,4.44],
+    [1.79,2.32,2.81,3.12,4.06],[2.39,2.23,3.46,3.41,4.62],[1.48,2.04,2.97,3.00,4.50],
+    [1.79,2.17,3.04,3.21,4.50],[1.39,1.83,2.56,2.72,4.06],
+    [2.33,3.48,3.04,4.17,4.69],[2.03,3.29,2.78,4.14,4.75],[1.67,3.19,2.66,3.90,4.69],
+    [1.76,3.33,2.85,4.05,4.62],[1.64,3.12,2.63,3.98,4.62],[2.09,3.23,2.81,3.97,4.56],
+    [1.58,3.19,2.73,3.93,4.75],[2.06,3.35,2.94,4.14,4.75],[2.09,3.17,2.95,3.84,4.62],
+    [1.64,3.17,2.72,3.95,4.62]
+  ]
+};
+
+const typeColors = ['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6'];
+const statusColors = {high:'#ef4444', mid:'#10b981', low:'#3b82f6'};
+const gradFromColors = {high:'#fef2f2', mid:'#f0fdf4', low:'#eff6ff'};
+const typeNames = ['T1','T2','T3','T4','T5'];
+
+// 직급별 유형 분포 데이터
+const rankDist = [
+  {rank:'사무1급',total:13,T1:1,T2:1,T3:3,T4:5,T5:3,dominant:'T4',dominantPct:38.5},
+  {rank:'관리3급',total:9,T1:2,T2:3,T3:2,T4:2,T5:0,dominant:'T2',dominantPct:33.3},
+  {rank:'관리1급갑',total:8,T1:0,T2:2,T3:2,T4:2,T5:2,dominant:'T3',dominantPct:25.0},
+  {rank:'관리2급',total:5,T1:3,T2:2,T3:0,T4:0,T5:0,dominant:'T1',dominantPct:60.0},
+  {rank:'사무3급',total:5,T1:0,T2:0,T3:2,T4:2,T5:1,dominant:'T4',dominantPct:40.0},
+  {rank:'관리1급을',total:3,T1:0,T2:1,T3:1,T4:0,T5:1,dominant:'T5',dominantPct:33.3},
+  {rank:'사무2급',total:2,T1:0,T2:0,T3:1,T4:1,T5:0,dominant:'T4',dominantPct:50.0},
+];
+
+// 조직별 유형 분포 데이터
+const orgDist = [
+  {org:'기획디자인부',total:10,T1:0,T2:4,T3:1,T4:2,T5:3,dominant:'T2',dominantPct:40.0},
+  {org:'기획개발부',total:8,T1:1,T2:0,T3:2,T4:5,T5:0,dominant:'T4',dominantPct:62.5},
+  {org:'영업1부',total:7,T1:1,T2:1,T3:2,T4:2,T5:1,dominant:'T3',dominantPct:28.6},
+  {org:'영업2부',total:7,T1:1,T2:2,T3:3,T4:0,T5:1,dominant:'T3',dominantPct:42.9},
+  {org:'영업3부',total:5,T1:1,T2:0,T3:0,T4:2,T5:2,dominant:'T5',dominantPct:40.0},
+  {org:'총무.경리부',total:4,T1:2,T2:0,T3:2,T4:0,T5:0,dominant:'T1',dominantPct:50.0},
+  {org:'정보전산실',total:3,T1:0,T2:2,T3:1,T4:0,T5:0,dominant:'T2',dominantPct:66.7},
+  {org:'고객물류지원부',total:1,T1:0,T2:0,T3:0,T4:1,T5:0,dominant:'T4',dominantPct:100.0},
+];
+
+// 유형별 개선과제 매핑
+const typeActions = {
+  T1:{name:'리더십 단절군',risk:'high',items:['리더십 신뢰 회복 프로그램 (1:1 코칭, 피드백 강화)','조직 내 소통 채널 개선','이탈 방지 긴급 면담 및 Stay Interview']},
+  T2:{name:'보상 괴리군',risk:'high',items:['보상 포지셔닝 재검토 및 시장 벤치마킹','성과-보상 연계 투명성 강화','개인별 보상 로드맵 및 복리후생 보완']},
+  T3:{name:'리더십 갈망군',risk:'mid',items:['리더십 개발 프로그램 (중간관리자 역량 강화)','멘토링/코칭 프로그램 도입','리더-구성원 소통 워크숍']},
+  T4:{name:'균형 안정군',risk:'low',items:['핵심인재 리텐션 (장기 인센티브)','경력 개발 경로 및 도전적 프로젝트 기회','차세대 리더 후보 관리']},
+  T5:{name:'충성 헌신군',risk:'low',items:['보상 현실화 검토','성과 인정 체계 보완 (비금전적 포함)','번아웃 방지 모니터링']},
+};
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function showTab(idx) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('active',i===idx));
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function heatColor(v) {
+  // 1=muted coral, 3=muted sand, 5=muted teal (톤다운)
+  const t = (v - 1) / 4;
+  if (t < 0.5) {
+    const r = 200, g = Math.round(110 + (80 * t * 2)), b = Math.round(100 + (30 * t * 2));
+    return `rgb(${r},${g},${b})`;
+  } else {
+    const r = Math.round(200 - (100 * (t-0.5)*2));
+    const g = Math.round(190 - (20 * (t-0.5)*2));
+    const b = Math.round(130 + (30 * (t-0.5)*2));
+    return `rgb(${r},${g},${b})`;
+  }
+}
+
+// ============================================================
+// PAGE 1: TYPE CARDS + HEATMAP + HR BAR
+// ============================================================
+function renderTypeCards() {
+  const container = document.getElementById('typeCards');
+  shwTypes.forEach((t,i)=>{
+    const sc = statusColors[t.status];
+    const gf = gradFromColors[t.status];
+    const div = document.createElement('div');
+    div.className = 'summary-card type-card';
+    div.style.cssText = `--grad-from:${gf};--border-color:${sc}`;
+    div.innerHTML = `
+      <div class="type-symbol" style="color:${sc}">${t.symbol}</div>
+      <div style="font-size:11px;font-weight:700;color:${sc}">T${i+1}</div>
+      <div class="type-name">${t.name}</div>
+      <div class="type-count">${t.n}명 (${t.pct}%)</div>
+      <canvas id="miniRadar${i}" width="120" height="85"></canvas>
+      <div class="type-desc">${t.desc}</div>
+    `;
+    container.appendChild(div);
+  });
+  shwTypes.forEach((t,i)=>{
+    new Chart(document.getElementById(`miniRadar${i}`), {
+      type:'radar',
+      data:{
+        labels:['리더십','인사제도','조직/프로'],
+        datasets:[{data:[t.lead,t.hr,t.org],backgroundColor:typeColors[i]+'22',borderColor:typeColors[i],borderWidth:2,pointRadius:3,pointBackgroundColor:typeColors[i]}]
+      },
+      options:{
+        responsive:false,
+        plugins:{legend:{display:false}},
+        scales:{r:{min:1,max:5,ticks:{display:false,stepSize:1},grid:{color:'#e5e7eb'},angleLines:{color:'#e5e7eb'},pointLabels:{font:{size:9},color:'#6b7280'}}}
+      }
+    });
+  });
+}
+
+function renderHeatmap() {
+  const container = document.getElementById('heatmapContainer');
+  let html = '<table class="heatmap-table"><thead><tr><th></th><th></th>';
+  typeNames.forEach((n,i)=>html+=`<th style="color:${typeColors[i]};font-weight:600">${n}</th>`);
+  html += '</tr></thead><tbody>';
+
+  let prevArea = '';
+  const areaLabels = {org:'조직/프로세스', hr:'인사제도', lead:'리더십'};
+  const areaOrder = ['org','hr','lead'];
+  const sorted = heatmapData.labels.map((l,i)=>({label:l,area:heatmapData.areas[i],vals:heatmapData.values[i]}));
+  const grouped = [];
+  areaOrder.forEach(a=>grouped.push(...sorted.filter(s=>s.area===a)));
+
+  grouped.forEach(item=>{
+    if (item.area !== prevArea) {
+      html += `<tr class="area-divider"><td colspan="7"></td></tr>`;
+      html += `<tr><td colspan="7" style="padding:4px 8px;"><span class="area-tag ${item.area}">${areaLabels[item.area]} (${sorted.filter(s=>s.area===item.area).length})</span></td></tr>`;
+      prevArea = item.area;
+    }
+    html += `<tr><td class="q-label">${item.label}</td><td></td>`;
+    item.vals.forEach(v=>{
+      const bg = heatColor(v);
+      html += `<td style="background:${bg};color:#fff;font-weight:600">${v.toFixed(2)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function renderHRBar() {
+  new Chart(document.getElementById('hrBarChart'), {
+    type:'bar',
+    data:{
+      labels: shwTypes.map((t,i)=>`T${i+1}`),
+      datasets:[
+        {label:'고평가율 (S+A%)', data:shwTypes.map(t=>t.highRate), backgroundColor:typeColors.map(c=>c+'cc'), yAxisID:'y'},
+        {label:'시장 보상 백분위', data:shwTypes.map(t=>t.pctile), backgroundColor:typeColors.map(c=>c+'33'), borderColor:typeColors, borderWidth:1, yAxisID:'y2'}
+      ]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{color:'#6b7280',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#374151',font:{size:11}},grid:{display:false}},
+        y:{position:'left',title:{display:true,text:'고평가율 (%)',color:'#6b7280',font:{size:11}},ticks:{color:'#6b7280'},grid:{color:'#f3f4f6'}},
+        y2:{position:'right',title:{display:true,text:'시장 보상 백분위',color:'#6b7280',font:{size:11}},ticks:{color:'#6b7280'},grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ============================================================
+// PAGE 2: PREDICTION
+// ============================================================
+function renderDistCompare() {
+  new Chart(document.getElementById('distCompare'), {
+    type:'bar',
+    data:{
+      labels:typeNames.map((n,i)=>`${n}`),
+      datasets:[
+        {label:'기준 모델',data:shwTypes.map(t=>t.pct),backgroundColor:'#6b728033',borderColor:'#6b7280',borderWidth:1},
+        {label:'O***',data:ossTypes.map(t=>t.pct),backgroundColor:'#2563eb33',borderColor:'#2563eb',borderWidth:1}
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#6b7280',font:{size:9},padding:6}}},
+      scales:{
+        x:{ticks:{color:'#374151',font:{size:9}},grid:{display:false}},
+        y:{title:{display:true,text:'%',color:'#6b7280',font:{size:9}},ticks:{color:'#6b7280',font:{size:9}},grid:{color:'#f3f4f6'}}
+      }
+    }
+  });
+}
+
+function renderRankDistBar() {
+  new Chart(document.getElementById('rankStackedBar'), {
+    type:'bar',
+    data:{
+      labels: rankDist.map(r=>r.rank),
+      datasets: typeNames.map((n,i)=>({
+        label:n,
+        data: rankDist.map(r=>r[n]),
+        backgroundColor: typeColors[i]+'cc',
+        borderColor: typeColors[i],
+        borderWidth: 1
+      }))
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#6b7280',font:{size:9},padding:6,boxWidth:10}}},
+      scales:{
+        x:{stacked:true,ticks:{color:'#374151',font:{size:8},maxRotation:45},grid:{display:false}},
+        y:{stacked:true,title:{display:true,text:'명',color:'#6b7280',font:{size:9}},ticks:{color:'#6b7280',font:{size:9},stepSize:2},grid:{color:'#f3f4f6'}}
+      }
+    }
+  });
+}
+
+function renderOrgDistBar2() {
+  new Chart(document.getElementById('orgDistBar'), {
+    type:'bar',
+    data:{
+      labels: orgDist.map(o=>o.org),
+      datasets: typeNames.map((n,i)=>({
+        label:n,
+        data: orgDist.map(o=>o[n]),
+        backgroundColor: typeColors[i]+'cc',
+        borderColor: typeColors[i],
+        borderWidth: 1
+      }))
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{stacked:true,ticks:{color:'#374151',font:{size:8},maxRotation:45},grid:{display:false}},
+        y:{stacked:true,title:{display:true,text:'명',color:'#6b7280',font:{size:9}},ticks:{color:'#6b7280',font:{size:9},stepSize:2},grid:{color:'#f3f4f6'}}
+      }
+    }
+  });
+}
+
+function renderPredCards() {
+  const container = document.getElementById('predCards');
+  const symbols = ['▲','▲','●','▼','▼'];
+  const predictions = [
+    {pred:'평가등급 하위권, 시장 보상 백분위 상위권 예측',note:'전 영역 만족도 최저 유형으로, 평가는 낮지만 시장 보상 백분위는 상대적으로 높아 보상-성과 미스매치가 나타납니다.'},
+    {pred:'평가등급 상위권, 시장 보상 백분위 하위권 예측',note:'리더십에는 만족하지만 보상·제도에 강한 불만을 가진 유형으로, 평가는 높으나 시장 보상 백분위가 낮습니다.'},
+    {pred:'평가등급 상위권, 시장 보상 백분위 상위권 예측',note:'제도에는 만족하지만 리더십 성장에 갈증을 느끼는 유형으로, 평가와 보상 모두 상위권을 유지합니다.'},
+    {pred:'평가등급 중위권, 시장 보상 백분위 중위권 예측',note:'전반적 만족도가 높고 평가·보상도 중간 수준으로, 안정적 균형을 보이는 유형입니다.'},
+    {pred:'평가등급 최하위권, 시장 보상 백분위 최하위권 예측',note:'만족도 최고이나 성과·보상은 최저인 "충성-보상 역설"이 나타나는 유형입니다.'},
+  ];
+  predictions.forEach((p,i)=>{
+    const sc = statusColors[shwTypes[i].status];
+    container.innerHTML += `
+      <div class="pred-card" style="--pred-color:${sc}">
+        <div class="pred-title"><span style="color:${sc};margin-right:4px">${symbols[i]}</span> T${i+1} ${shwTypes[i].name} (${ossTypes[i].n}명, ${ossTypes[i].pct}%)</div>
+        <div class="pred-text">
+          <span class="pred-num" style="color:${sc}">${p.pred}</span><br>
+          <span style="color:#374151;display:inline-block;margin-top:4px">${p.note}</span>
+        </div>
+      </div>`;
+  });
+}
+
+// ============================================================
+// PAGE 3: VALIDATION
+// ============================================================
+function renderGauges() {
+  const makeGauge = (id, val, color) => {
+    new Chart(document.getElementById(id), {
+      type:'doughnut',
+      data:{datasets:[{data:[val,1-val],backgroundColor:[color,'#f3f4f6'],borderWidth:0,circumference:180,rotation:270}]},
+      options:{responsive:false,cutout:'75%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+    });
+  };
+  makeGauge('gaugeEval', 0.458, '#f59e0b');
+  makeGauge('gaugePctile', 0.554, '#10b981');
+  makeGauge('gaugeInternal', 0.468, '#9ca3af');
+}
+
+function renderCompareTable() {
+  const body = document.getElementById('compareBody');
+  const symbols = ['▲','▲','●','▼','▼'];
+  for (let i = 0; i < 5; i++) {
+    const s = shwTypes[i], o = ossTypes[i];
+    const hrMatch = Math.abs(s.highRate - o.highRate) < 10;
+    const sc = statusColors[s.status];
+    body.innerHTML += `<tr>
+      <td style="font-weight:600"><span style="color:${sc};margin-right:4px">${symbols[i]}</span>T${i+1} ${s.name}</td>
+      <td>${s.highRate}%</td>
+      <td class="${hrMatch?'match':'mismatch'}">${o.highRate}%</td>
+      <td>${s.pctile}</td>
+      <td>${o.pctile}</td>
+    </tr>`;
+  }
+}
+
+function renderCM() {
+  new Chart(document.getElementById('cmChart'), {
+    type:'bar',
+    data:{
+      labels:['True Negative','False Positive','False Negative','True Positive'],
+      datasets:[{data:[17,13,7,4],backgroundColor:['#dcfce7','#fef2f2','#fef2f2','#dcfce7'],borderColor:['#10b981','#ef4444','#ef4444','#10b981'],borderWidth:1}]
+    },
+    options:{
+      responsive:true,indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:'#6b7280'},grid:{color:'#f3f4f6'}},y:{ticks:{color:'#374151',font:{size:11}},grid:{display:false}}}
+    }
+  });
+}
+
+// ============================================================
+// PAGE 4: ACTION PLAN (조직별)
+// ============================================================
+function renderOrgActionCards() {
+  const container = document.getElementById('orgActionCards');
+  const riskSymbols = {high:'▲', mid:'●', low:'▼'};
+  const riskLabels = {high:'HIGH RISK', mid:'MEDIUM', low:'STABLE'};
+
+  orgDist.forEach(o=>{
+    if (o.total < 2) return; // 1명 조직은 스킵
+    const dom = typeActions[o.dominant];
+    const sc = statusColors[dom.risk];
+    const gf = gradFromColors[dom.risk];
+
+    // 유형 분포 막대 (인라인 미니 바)
+    const barParts = typeNames.map((n,i)=>{
+      const cnt = o[n];
+      if (cnt === 0) return '';
+      const pct = (cnt / o.total * 100).toFixed(0);
+      return `<span style="display:inline-block;width:${pct}%;background:${typeColors[i]}cc;color:#fff;text-align:center;font-size:10px;padding:2px 0;min-width:20px" title="${n} ${shwTypes[i].name}: ${cnt}명">${n}:${cnt}</span>`;
+    }).join('');
+
+    // 상위 2개 유형 추출
+    const sorted = typeNames.map((n,i)=>({name:n,cnt:o[n],idx:i})).filter(x=>x.cnt>0).sort((a,b)=>b.cnt-a.cnt);
+    const top2 = sorted.slice(0,2);
+    const allActions = [];
+    top2.forEach(t=>{
+      const ta = typeActions[t.name];
+      ta.items.forEach(item=>{
+        if (!allActions.includes(item)) allActions.push(item);
+      });
+    });
+
+    container.innerHTML += `
+      <div class="summary-card action-card" style="--grad-from:${gf};--border-color:${sc};margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h4 style="margin:0">${o.org} <span style="font-size:12px;font-weight:400;color:#6b7280">(${o.total}명)</span></h4>
+          <span class="risk-badge" style="background:${gf};color:${sc};border:1px solid ${sc}">${riskSymbols[dom.risk]} ${dom.name} ${o.dominantPct}%</span>
+        </div>
+        <div style="display:flex;border-radius:4px;overflow:hidden;margin-bottom:10px">${barParts}</div>
+        <div style="font-size:11px;color:#374151;background:#f9fafb;padding:8px 10px;border-radius:4px;margin-bottom:8px;line-height:1.6;border-left:3px solid ${sc}">
+          주요 유형: ${top2.map(t=>`<strong>${t.name} ${typeActions[t.name].name}</strong>(${t.cnt}명)`).join(', ')}
+        </div>
+        <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px">&#10140; 개선과제</div>
+        <ul>${allActions.slice(0,4).map(item=>`<li>${item}</li>`).join('')}</ul>
+      </div>`;
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', () => {
+  renderTypeCards();
+  renderHeatmap();
+  renderHRBar();
+  renderDistCompare();
+  renderRankDistBar();
+  renderOrgDistBar2();
+  renderPredCards();
+  renderGauges();
+  renderCompareTable();
+  renderCM();
+  renderOrgActionCards();
+});
+</script>
+</body>
+</html>
