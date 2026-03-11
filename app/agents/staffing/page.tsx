@@ -1,32 +1,53 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus } from "lucide-react";
+import db from "@/lib/db";
+import StaffingPanel from "@/components/agents/StaffingPanel";
+
+interface AgentResultRow {
+  id: number;
+  agent_type: string;
+  target_org: string;
+  result_title: string;
+  result_summary: string;
+  result_data_json: string;
+  recommendations_json: string;
+}
+
+interface OrgUnitRow {
+  org_code: string;
+  org_name: string;
+}
 
 export default function StaffingPage() {
-  return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-      <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-          <span>HR Agents</span>
-          <span>/</span>
-          <span className="text-gray-900">조직/채용 Agent</span>
-        </div>
-        <h1 className="text-xl font-semibold text-gray-900">조직/채용 Agent</h1>
-        <p className="text-sm text-gray-500 mt-1">채용 요건, 추천 스킬 프로필, 워크로드 개선 예측</p>
-      </div>
+  const rows = db
+    .prepare(
+      "SELECT id, agent_type, target_org, result_title, result_summary, result_data_json, recommendations_json FROM agent_results WHERE agent_type = ?"
+    )
+    .all("staffing") as AgentResultRow[];
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5 text-cyan-600" />
-            채용 계획 결과
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-500">Phase 3에서 구현 예정</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  if (rows.length === 0) {
+    throw new Error(
+      "No agent_results found for agent_type='staffing'. Run npm run seed first."
+    );
+  }
+
+  const orgUnits = db
+    .prepare("SELECT org_code, org_name FROM org_units")
+    .all() as OrgUnitRow[];
+
+  if (orgUnits.length === 0) {
+    throw new Error("No org_units found in database. Run npm run seed first.");
+  }
+
+  const results = rows.map((row) => ({
+    id: row.id,
+    agent_type: row.agent_type,
+    target_org: row.target_org,
+    result_title: row.result_title,
+    result_summary: row.result_summary,
+    result_data: JSON.parse(row.result_data_json),
+    recommendations: JSON.parse(row.recommendations_json) as string[],
+  }));
+
+  return <StaffingPanel results={results} orgUnits={orgUnits} />;
 }
