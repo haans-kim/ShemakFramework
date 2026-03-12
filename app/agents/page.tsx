@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { CaseCard } from "@/components/poc/case-card";
+import { cn } from "@/lib/utils";
 import {
   Bot,
   BrainCircuit,
@@ -12,7 +14,7 @@ import {
   FileText,
 } from "lucide-react";
 
-const opticViewCases = [
+const performanceSkillCases = [
   {
     href: "/agents/skill",
     client: "P***",
@@ -32,6 +34,47 @@ const opticViewCases = [
     ],
     accentColor: "bg-indigo-500",
   },
+  {
+    href: "/agents/skill-leveling",
+    client: "현***",
+    title: "DB 기반 Skill Leveling",
+    description:
+      "설계직군 Skill Level 결측치를 DB 기반으로 예측하는 대시보드. 레이더 차트, 테이블, 요약 카드로 숙련도 분석.",
+    icon: Database,
+    metrics: [
+      { label: "대시보드", value: "22p" },
+      { label: "직군", value: "Design" },
+      { label: "분석", value: "Level 예측" },
+    ],
+    tags: [
+      { text: "Skill Level", variant: "info" as const },
+      { text: "결측치 예측", variant: "success" as const },
+      { text: "DB 기반", variant: "warning" as const },
+    ],
+    accentColor: "bg-indigo-500",
+  },
+  {
+    href: "/agents/skill-inference",
+    client: "현***",
+    title: "채용공고 기반 Skill 추론",
+    description:
+      "채용 공고에서 AI가 스킬을 자동 추출하고, 스킬 의존성 그래프를 구축하여 암묵적 스킬까지 추론하는 파이프라인.",
+    icon: FileSearch,
+    metrics: [
+      { label: "대시보드", value: "23p" },
+      { label: "파이프라인", value: "6단계" },
+      { label: "추론", value: "AI 기반" },
+    ],
+    tags: [
+      { text: "Skill 추론", variant: "info" as const },
+      { text: "Dependency Graph", variant: "success" as const },
+      { text: "Embedding", variant: "warning" as const },
+    ],
+    accentColor: "bg-cyan-500",
+  },
+];
+
+const compensationCases = [
   {
     href: "/agents/ilji",
     client: "일***",
@@ -72,45 +115,7 @@ const opticViewCases = [
   },
 ];
 
-const skillAgentCases = [
-  {
-    href: "/agents/skill-leveling",
-    client: "현***",
-    title: "DB 기반 Skill Leveling",
-    description:
-      "설계직군 Skill Level 결측치를 DB 기반으로 예측하는 대시보드. 레이더 차트, 테이블, 요약 카드로 숙련도 분석.",
-    icon: Database,
-    metrics: [
-      { label: "대시보드", value: "22p" },
-      { label: "직군", value: "Design" },
-      { label: "분석", value: "Level 예측" },
-    ],
-    tags: [
-      { text: "Skill Level", variant: "info" as const },
-      { text: "결측치 예측", variant: "success" as const },
-      { text: "DB 기반", variant: "warning" as const },
-    ],
-    accentColor: "bg-indigo-500",
-  },
-  {
-    href: "/agents/skill-inference",
-    client: "현***",
-    title: "채용공고 기반 Skill 추론",
-    description:
-      "채용 공고에서 AI가 스킬을 자동 추출하고, 스킬 의존성 그래프를 구축하여 암묵적 스킬까지 추론하는 파이프라인.",
-    icon: FileSearch,
-    metrics: [
-      { label: "대시보드", value: "23p" },
-      { label: "파이프라인", value: "6단계" },
-      { label: "추론", value: "AI 기반" },
-    ],
-    tags: [
-      { text: "Skill 추론", variant: "info" as const },
-      { text: "Dependency Graph", variant: "success" as const },
-      { text: "Embedding", variant: "warning" as const },
-    ],
-    accentColor: "bg-cyan-500",
-  },
+const orgRecruitCases = [
   {
     href: "/agents/gap-monitoring",
     client: "현***",
@@ -170,7 +175,16 @@ const skillAgentCases = [
   },
 ];
 
+const tabs = [
+  { key: "performance" as const, label: "성과/스킬", description: "AI Agent 기반 성과 진단 및 스킬 분석 자동화", cases: performanceSkillCases },
+  { key: "compensation" as const, label: "보상", description: "AI 시나리오 기반 보상 최적화 및 인상률 시뮬레이션", cases: compensationCases },
+  { key: "org-recruit" as const, label: "조직/채용", description: "BFM 기반 Gap 분석 및 채용 요건·공고 자동화", cases: orgRecruitCases },
+];
+
 export default function AgentsPage() {
+  const [activeTab, setActiveTab] = useState(tabs[0].key);
+  const current = tabs.find((t) => t.key === activeTab) ?? tabs[0];
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="mb-8">
@@ -179,44 +193,43 @@ export default function AgentsPage() {
           <h1 className="text-xl font-semibold text-gray-900">HR Agents</h1>
         </div>
         <p className="text-sm text-gray-500">
-          AI Agent 기반 HR 업무 자동화 -- 스킬 진단, 보상 시뮬레이션, 채용 자동화
+          AI Agent 기반 HR 업무 자동화 — 스킬 진단, 보상 시뮬레이션, 채용 자동화
         </p>
       </div>
 
-      {/* Optic View Agent Group */}
-      <div className="mb-10">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-indigo-500 rounded-full" />
-          <h2 className="text-lg font-semibold text-gray-800">
-            Optic View Agent
-          </h2>
-          <span className="text-xs text-gray-400 ml-1">
-            {opticViewCases.length}건
-          </span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {opticViewCases.map((c) => (
-            <CaseCard key={c.href} {...c} />
+      {/* Tab Navigation */}
+      <div className="mb-6">
+        <nav className="flex gap-2 max-w-3xl">
+          {tabs.map((tab) => (
+            <button
+              type="button"
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "flex-1 px-5 py-2.5 text-sm font-semibold rounded-t-lg border border-b-0 transition-colors",
+                activeTab === tab.key
+                  ? "bg-white text-gray-900 border-gray-300"
+                  : "bg-gray-100 text-gray-400 border-transparent hover:text-gray-600 hover:bg-gray-50"
+              )}
+            >
+              {tab.label}
+              <span className="ml-1.5 text-xs font-normal text-gray-400">
+                {tab.cases.length}
+              </span>
+            </button>
           ))}
-        </div>
+        </nav>
+        <div className="border-t border-gray-300" />
       </div>
 
-      {/* Skill/Recruit Agent Group */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-5 bg-cyan-500 rounded-full" />
-          <h2 className="text-lg font-semibold text-gray-800">
-            채용/스킬 Agent
-          </h2>
-          <span className="text-xs text-gray-400 ml-1">
-            {skillAgentCases.length}건
-          </span>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {skillAgentCases.map((c) => (
-            <CaseCard key={c.href} {...c} />
-          ))}
-        </div>
+      {/* Tab Description */}
+      <p className="text-sm text-gray-500 mb-6">{current.description}</p>
+
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {current.cases.map((c) => (
+          <CaseCard key={c.href} {...c} />
+        ))}
       </div>
     </div>
   );

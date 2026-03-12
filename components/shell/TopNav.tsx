@@ -23,16 +23,16 @@ const navItems = [
     description: "주기적 적정 인력 관리",
   },
   {
-    label: "Optic View",
-    href: "/optic-view",
-    icon: Eye,
-    description: "몰입도 예측 및 관리",
-  },
-  {
     label: "HR Agents",
     href: "/agents",
     icon: Bot,
     description: "AI Agent 기반 HR 운영",
+  },
+  {
+    label: "Optic View",
+    href: "/optic-view",
+    icon: Eye,
+    description: "몰입도 예측 및 관리",
   },
 ];
 

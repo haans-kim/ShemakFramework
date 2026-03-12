@@ -66,7 +66,7 @@ const colorMap = {
   },
 };
 
-const pillarNumbers = ["I", "II", "III"];
+const pillarNumbers = ["I", "III", "II"];
 
 export function PillarCard({
   title,
