@@ -6,7 +6,9 @@
       "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --turbopack --yes)",
       "Read(//private/tmp/**)",
       "Bash(npx create-next-app@latest shemak-frame --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --turbopack --yes)",
-      "Read(//Users/hanskim/Projects/PoC/**)"
+      "Read(//Users/hanskim/Projects/PoC/**)",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_navigate"
     ]
   }
 }
