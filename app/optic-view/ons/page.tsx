@@ -41,7 +41,7 @@ function gapClass(val: number, grp: number) {
 
 function gapText(val: number, grp: number) {
   const gap = Math.round((val - grp) * 10) / 10;
-  const arrow = gap >= 0 ? "\u25B2" : "\u25BC";
+  const arrow = gap >= 0 ? "▲" : "▼";
   return `${arrow} ${gap > 0 ? "+" : ""}${gap}%p`;
 }
 
@@ -354,7 +354,7 @@ function SubTeamTable({ org }: { org: OrgData }) {
                 <td className="py-2.5 px-3">
                   <span className={`font-semibold ${engColor}`}>{t.engagement}%</span>
                   <span className={`text-[11px] ml-1 font-semibold ${gapCls}`}>
-                    {engGap >= 0 ? "\u25B2" : "\u25BC"}{engGap > 0 ? "+" : ""}{engGap}%p
+                    {engGap >= 0 ? "▲" : "▼"}{engGap > 0 ? "+" : ""}{engGap}%p
                   </span>
                 </td>
                 <td className="py-2.5 px-3">
@@ -495,7 +495,7 @@ function OverviewTab({ onOrgClick }: { onOrgClick: (idx: number) => void }) {
                   </div>
                 )}
                 <div className="text-center mt-2 text-[11px] text-gray-400">
-                  {isExpanded ? "\u25B2 접기" : "\u25BC 클릭하여 상세 보기"}
+                  {isExpanded ? "▲ 접기" : "▼ 클릭하여 상세 보기"}
                 </div>
               </div>
             );
@@ -663,7 +663,7 @@ function TeamTab({ org }: { org: OrgData }) {
       {(org.strengthen.length > 0 || org.improve.length > 0) && (
         <div className="grid grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-            <div className="text-sm font-semibold text-blue-600 mb-3">{"\u25B2"} 강화 과제</div>
+            <div className="text-sm font-semibold text-blue-600 mb-3">{"▲"} 강화 과제</div>
             {org.strengthen.length === 0 ? (
               <p className="text-[13px] text-gray-400">해당 없음</p>
             ) : (
@@ -688,7 +688,7 @@ function TeamTab({ org }: { org: OrgData }) {
             )}
           </div>
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-            <div className="text-sm font-semibold text-red-600 mb-3">{"\u25BC"} 개선 과제</div>
+            <div className="text-sm font-semibold text-red-600 mb-3">{"▼"} 개선 과제</div>
             {org.improve.length === 0 ? (
               <p className="text-[13px] text-gray-400">해당 없음</p>
             ) : (

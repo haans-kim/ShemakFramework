@@ -190,7 +190,7 @@ export default function AgentsPage() {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-2">
           <Bot className="w-5 h-5 text-gray-700" />
-          <h1 className="text-xl font-semibold text-gray-900">HR Agents</h1>
+          <h1 className="text-3xl font-bold text-gray-900">HR Agents</h1>
         </div>
         <p className="text-sm text-gray-500">
           AI Agent 기반 HR 업무 자동화 — 스킬 진단, 보상 시뮬레이션, 채용 자동화

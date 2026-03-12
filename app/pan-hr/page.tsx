@@ -42,7 +42,7 @@ export default function PanHRPage() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-gray-900">Pan HR</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Pan HR</h1>
         <p className="text-sm text-gray-500 mt-1">
           주기적 적정 인력 관리 - 인력관리, 인력계획, 스킬관리
         </p>

@@ -138,12 +138,8 @@ export function PillarCard({
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-3">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-xs font-medium text-gray-300">+</span>
-              <div className="flex-1 h-px bg-gray-100" />
-            </div>
+            {/* Spacer */}
+            <div className="my-3" />
 
             {/* AI Section */}
             <div className="flex-1">
