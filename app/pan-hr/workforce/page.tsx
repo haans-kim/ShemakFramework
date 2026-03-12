@@ -1,21 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChevronRight, ArrowRight } from "lucide-react";
 import { CenterLevelGrid } from "@/components/workforce/CenterLevelGrid";
 import { MetricSelector } from "@/components/workforce/MetricSelector";
+import { MonthSelector } from "@/components/workforce/MonthSelector";
 import { SummaryCards } from "@/components/workforce/SummaryCards";
-import { dashboardData, type MetricType } from "@/lib/data/workforce-matrix-data";
+import { dashboardData, getMonthlyDashboardData, type MetricType } from "@/lib/data/workforce-matrix-data";
 
 export default function WorkforcePage() {
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem("hrDashboard.selectedMetric") as MetricType | null;
-      if (saved) return saved;
-    }
-    return "efficiency";
-  });
+  const [selectedMetric, setSelectedMetric] = useState<MetricType>("weeklyClaimedHours");
+  const [selectedMonth, setSelectedMonth] = useState<number>(6);
+
+  useEffect(() => {
+    const savedMetric = window.localStorage.getItem("hrDashboard.selectedMetric") as MetricType | null;
+    if (savedMetric) setSelectedMetric(savedMetric);
+    const savedMonth = window.localStorage.getItem("hrDashboard.selectedMonth");
+    if (savedMonth) setSelectedMonth(parseInt(savedMonth, 10));
+  }, []);
 
   const handleMetricChange = (metric: MetricType) => {
     setSelectedMetric(metric);
@@ -25,6 +28,17 @@ export default function WorkforcePage() {
       // localStorage 접근 불가 시 무시
     }
   };
+
+  const handleMonthChange = (month: number) => {
+    setSelectedMonth(month);
+    try {
+      window.localStorage.setItem("hrDashboard.selectedMonth", String(month));
+    } catch {
+      // localStorage 접근 불가 시 무시
+    }
+  };
+
+  const data = getMonthlyDashboardData(selectedMonth);
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10">
@@ -51,25 +65,28 @@ export default function WorkforcePage() {
             onMetricChange={handleMetricChange}
           />
         </div>
+        <div className="mt-3">
+          <MonthSelector selectedMonth={selectedMonth} onMonthChange={handleMonthChange} />
+        </div>
       </div>
 
       {/* ═══ Signature Matrix Dashboard ═══ */}
       <CenterLevelGrid
-        centers={dashboardData.centers}
-        gradeMatrix={dashboardData.gradeMatrix}
-        weeklyClaimedHoursMatrix={dashboardData.weeklyClaimedHoursMatrix}
-        adjustedWeeklyWorkHoursMatrix={dashboardData.adjustedWeeklyWorkHoursMatrix}
-        avgEfficiency={dashboardData.avgEfficiency}
-        avgWeeklyClaimedHours={dashboardData.avgWeeklyClaimedHours}
-        avgAdjustedWeeklyWorkHours={dashboardData.avgAdjustedWeeklyWorkHours}
+        centers={data.centers}
+        gradeMatrix={data.gradeMatrix}
+        weeklyClaimedHoursMatrix={data.weeklyClaimedHoursMatrix}
+        adjustedWeeklyWorkHoursMatrix={data.adjustedWeeklyWorkHoursMatrix}
+        avgEfficiency={data.avgEfficiency}
+        avgWeeklyClaimedHours={data.avgWeeklyClaimedHours}
+        avgAdjustedWeeklyWorkHours={data.avgAdjustedWeeklyWorkHours}
         selectedMetric={selectedMetric}
-        thresholds={dashboardData.thresholds}
+        thresholds={data.thresholds}
       />
 
       {/* ═══ Summary Cards (Threshold Legend) ═══ */}
       <SummaryCards
         selectedMetric={selectedMetric}
-        thresholds={dashboardData.thresholds}
+        thresholds={data.thresholds}
       />
 
       {/* Navigation */}

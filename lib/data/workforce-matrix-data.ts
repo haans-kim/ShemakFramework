@@ -425,3 +425,75 @@ export const dashboardData: DashboardData = {
   adjustedWeeklyWorkHoursMatrix,
   thresholds,
 };
+
+// ─── 월별 변동 데이터 생성 ──────────────────────────────────────────────────
+
+// 결정론적 의사난수 (seed 기반)
+function seededRandom(seed: number): number {
+  const s = ((seed * 1103515245 + 12345) & 0x7fffffff);
+  return (s % 10000) / 10000;
+}
+
+// 월별 변동 계수 (±3% 범위 내 변동)
+function getMonthlyVariation(baseValue: number, month: number, seed: number): number {
+  const r = seededRandom(month * 1000 + seed);
+  const variation = (r - 0.5) * 0.06; // ±3%
+  return Math.round((baseValue * (1 + variation)) * 10) / 10;
+}
+
+/**
+ * 월별 대시보드 데이터 반환
+ * month: 1~12
+ */
+export function getMonthlyDashboardData(month: number): DashboardData {
+  const monthlyCenters: CenterStats[] = centers.map((c, ci) => ({
+    ...c,
+    avgWorkEfficiency: getMonthlyVariation(c.avgWorkEfficiency, month, ci * 100 + 1),
+    avgWeeklyClaimedHours: getMonthlyVariation(c.avgWeeklyClaimedHours, month, ci * 100 + 2),
+    avgAdjustedWeeklyWorkHours: getMonthlyVariation(c.avgAdjustedWeeklyWorkHours, month, ci * 100 + 3),
+  }));
+
+  // 월별 매트릭스 생성
+  const applyMonthlyMatrix = (base: MatrixData, seedOffset: number): MatrixData => {
+    const newMatrix: Record<string, Record<string, number>> = {};
+    let si = 0;
+    for (const grade of base.grades) {
+      newMatrix[grade] = {};
+      for (const center of base.centers) {
+        const baseVal = base.matrix[grade]?.[center];
+        if (baseVal !== undefined) {
+          newMatrix[grade][center] = getMonthlyVariation(baseVal, month, seedOffset + si);
+          si++;
+        }
+      }
+    }
+    return { grades: base.grades, centers: base.centers, matrix: newMatrix };
+  };
+
+  const mGrade = applyMonthlyMatrix(gradeMatrix, 1000);
+  const mClaimed = applyMonthlyMatrix(weeklyClaimedHoursMatrix, 2000);
+  const mAdjusted = applyMonthlyMatrix(adjustedWeeklyWorkHoursMatrix, 3000);
+
+  const mTotalHC = monthlyCenters.reduce((s, c) => s + c.headcount, 0);
+  const mAvgEff = Math.round(
+    monthlyCenters.reduce((s, c) => s + c.avgWorkEfficiency * c.headcount, 0) / mTotalHC * 10
+  ) / 10;
+  const mAvgClaimed = Math.round(
+    monthlyCenters.reduce((s, c) => s + c.avgWeeklyClaimedHours * c.headcount, 0) / mTotalHC * 10
+  ) / 10;
+  const mAvgAdj = Math.round(
+    monthlyCenters.reduce((s, c) => s + c.avgAdjustedWeeklyWorkHours * c.headcount, 0) / mTotalHC * 10
+  ) / 10;
+
+  return {
+    totalEmployees,
+    centers: monthlyCenters,
+    avgEfficiency: mAvgEff,
+    avgWeeklyClaimedHours: mAvgClaimed,
+    avgAdjustedWeeklyWorkHours: mAvgAdj,
+    gradeMatrix: mGrade,
+    weeklyClaimedHoursMatrix: mClaimed,
+    adjustedWeeklyWorkHoursMatrix: mAdjusted,
+    thresholds,
+  };
+}

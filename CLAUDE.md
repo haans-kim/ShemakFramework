@@ -48,7 +48,7 @@ npm run seed      # 데모 데이터 시드
 ### 소스 프로젝트 참조
 | 모듈 | 소스 |
 |------|------|
-| 인력관리 | `/Users/hanskim/Projects/SambioHRR/` |
-| 인력계획 | `/Users/hanskim/Projects/Hwaseung/` |
-| 스킬관리 | `/Users/hanskim/Projects/MasterSkillset/` |
-| Optic View + Agents | `/Users/hanskim/Projects/PoC/` |
+| 인력관리 | 내부 프로젝트 (인력관리 대시보드) |
+| 인력계획 | 내부 프로젝트 (인력계획 시스템) |
+| 스킬관리 | 내부 프로젝트 (스킬관리 플랫폼) |
+| Optic View + Agents | 내부 프로젝트 (PoC 사례) |

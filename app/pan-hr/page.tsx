@@ -15,7 +15,6 @@ const modules = [
     bgColor: "from-blue-50 to-white",
     borderColor: "border-l-blue-500",
     tags: ["근무 효율", "초과근무", "번아웃 위험"],
-    source: "SambioHRR",
   },
   {
     title: "인력계획",
@@ -26,7 +25,6 @@ const modules = [
     bgColor: "from-emerald-50 to-white",
     borderColor: "border-l-emerald-500",
     tags: ["FTE 분석", "인원 예측", "시나리오"],
-    source: "Hwaseung",
   },
   {
     title: "스킬관리",
@@ -37,7 +35,6 @@ const modules = [
     bgColor: "from-violet-50 to-white",
     borderColor: "border-l-violet-500",
     tags: ["스킬 갭", "역량 매트릭스", "계층 구조"],
-    source: "MasterSkillset",
   },
 ];
 
@@ -62,9 +59,6 @@ export default function PanHRPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <Icon className={`w-5 h-5 ${mod.color}`} />
-                    <Badge variant="outline" className="text-xs text-gray-400">
-                      {mod.source}
-                    </Badge>
                   </div>
                   <CardTitle className="text-lg">{mod.title}</CardTitle>
                 </CardHeader>
