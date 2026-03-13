@@ -1,7 +1,7 @@
 "use client";
 
 import { CaseCard } from "@/components/poc/case-card";
-import { Activity, Layers, Users, Shield, BarChart3, Cpu } from "lucide-react";
+import { Activity, Layers, Users, Shield, BarChart3, Cpu, Shirt } from "lucide-react";
 
 const cases = [
   {
@@ -22,6 +22,25 @@ const cases = [
       { text: "What-If", variant: "warning" as const },
     ],
     accentColor: "bg-purple-500",
+  },
+  {
+    href: "/optic-view/clothing",
+    client: "S***",
+    title: "의류업종 HR Analytics",
+    description:
+      "의류업종 HR Analytics. H-S 모델 기반 심화 분석, 조직별 상세 진단, 개선 시나리오 시뮬레이션.",
+    icon: Shirt,
+    metrics: [
+      { label: "분석 대상", value: "331명" },
+      { label: "조직 수", value: "44명" },
+      { label: "유형", value: "4종" },
+    ],
+    tags: [
+      { text: "H-S 모델", variant: "info" as const },
+      { text: "H-S 분석", variant: "success" as const },
+      { text: "조직진단", variant: "warning" as const },
+    ],
+    accentColor: "bg-rose-500",
   },
   {
     href: "/optic-view/cross",

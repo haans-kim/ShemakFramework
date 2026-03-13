@@ -453,7 +453,7 @@ export default function WorkforceImbalancePage() {
             근무 불균형 - 전사 대시보드
           </h1>
           <p className="text-sm text-neutral-600 mt-1">
-            10,000명 조직 모니터링
+            10,517명 조직 모니터링
           </p>
         </div>
       </div>

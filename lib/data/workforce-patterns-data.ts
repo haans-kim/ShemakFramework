@@ -1,6 +1,6 @@
 /**
  * 근무 패턴 분석 정적 데이터 (익명화)
- * 원시 태그 데이터 12.5M건 기반 팀 단위 요약 통계
+ * 원시 태그 데이터 2,000만건 기반 팀 단위 요약 통계
  * 5개 클러스터 유형 × ~60개 팀
  */
 
@@ -73,26 +73,26 @@ export const CLUSTER_COLORS: Record<string, string> = {
 // ─── 원시 데이터 규모 ───────────────────────────────────────────────────────────
 
 export const rawDataStats: RawDataStats = {
-  total_tag_records: 12500000,
-  monthly_tag_records: 1040000,
-  total_equipment_records: 285000,
-  total_knox_records: 156000,
+  total_tag_records: 20080148,
+  monthly_tag_records: 1673345,
+  total_equipment_records: 660362,
+  total_knox_records: 257781,
   tag_location_types: 47,
 };
 
 // ─── 태그 요약 ──────────────────────────────────────────────────────────────────
 
 export const tagSummary: TagSummary = {
-  total_o_tags: 8750000,
+  total_o_tags: 20080148,
   total_knox: 2340000,
-  total_t1: 980000,
+  total_t1: 18200000,
   total_g3: 430000,
-  total_teams: 62,
-  total_employees: 10000,
-  avg_o_per_person: 875,
-  avg_knox_per_person: 234,
-  avg_t1_per_person: 98,
-  avg_g3_per_person: 43,
+  total_teams: 73,
+  total_employees: 10517,
+  avg_o_per_person: 100.9,
+  avg_knox_per_person: 74.5,
+  avg_t1_per_person: 99.6,
+  avg_g3_per_person: 1.2,
 };
 
 // ─── 센터 목록 (익명화) ─────────────────────────────────────────────────────────

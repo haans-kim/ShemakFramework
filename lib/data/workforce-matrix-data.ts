@@ -1,6 +1,6 @@
 /**
  * 익명화된 제조업체 인력관리 매트릭스 데이터
- * 전체 대상자: ~10,000명
+ * 전체 대상자: ~10,517명
  * 센터 10개 × 직급 4단계 (Lv.1~Lv.4)
  * 3개 메트릭: 주간 근태시간, 주간 근무추정시간, 효율성
  *
@@ -59,7 +59,7 @@ export interface DashboardData {
   };
 }
 
-// ─── 센터 정보 (익명화 제조업체, ~10,000명, 10개 센터) ────────────────────────
+// ─── 센터 정보 (익명화 제조업체, ~10,517명, 10개 센터) ────────────────────────
 
 const centers: CenterStats[] = [
   { orgCode: 'C1', orgName: '생산1센터', orgLevel: 'center', headcount: 1580, avgWorkEfficiency: 82.3, avgWeeklyClaimedHours: 44.2, avgAdjustedWeeklyWorkHours: 39.8 },
